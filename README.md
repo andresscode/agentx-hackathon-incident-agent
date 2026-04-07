@@ -159,7 +159,7 @@ Trace coverage across all pipeline stages:
 | `@joedoe6179`     | Team Lead / Full Stack        |
 | `@ouroboroz333`   | Backend / AI / Infrastructure |
 | `@_kindalikedeus` | Architecture / Scaling        |
-| `@happier_helmut` | Documentation / Frontend      |
+| `@happier_helmut` | Documentation / Backend       |
 
 ---
 
