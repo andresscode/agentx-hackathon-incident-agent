@@ -1,0 +1,1 @@
+explanation of how the application scales, including assumptions and technical decisions
