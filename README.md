@@ -78,9 +78,8 @@ Built for the **AgentX Hackathon** — [#AgentXHackathon](https://youtube.com)
 
 ## 🚀 Quickstart
 
-### Prerequisites
-- Node.js 20+, pnpm
-- Python 3.12+, uv
+### Prerequisites (Testing)
+
 - Docker & Docker Compose
 
 ```bash
@@ -103,6 +102,9 @@ docker compose up --build
 > See [`QUICKGUIDE.md`](./QUICKGUIDE.md) for detailed step-by-step instructions.
 
 ### Local Development (without Docker)
+
+- Node.js 20+, pnpm
+- Python 3.12+, uv
 
 **Database**
 ```bash
