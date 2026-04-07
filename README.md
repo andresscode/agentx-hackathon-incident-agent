@@ -106,11 +106,6 @@ docker compose up --build
 - Node.js 20+, pnpm
 - Python 3.12+, uv
 
-**Database**
-```bash
-docker compose up db
-```
-
 **Backend**
 ```bash
 cd backend
