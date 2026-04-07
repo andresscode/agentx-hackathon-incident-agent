@@ -78,10 +78,15 @@ Built for the **AgentX Hackathon** — [#AgentXHackathon](https://youtube.com)
 
 ## 🚀 Quickstart
 
+### Prerequisites
+- Node.js 20+, pnpm
+- Python 3.12+, uv
+- Docker & Docker Compose
+
 ```bash
 # 1. Clone the repository
-git clone https://github.com/<org>/<repo>.git
-cd <repo>
+git clone https://github.com/andresscode/agentx-hackathon-incident-agent.git
+cd agentx-hackathon-incident-agent
 
 # 2. Copy environment variables and fill in your keys
 cp .env.example .env
@@ -96,6 +101,29 @@ docker compose up --build
 ```
 
 > See [`QUICKGUIDE.md`](./QUICKGUIDE.md) for detailed step-by-step instructions.
+
+### Local Development (without Docker)
+
+**Database**
+```bash
+docker compose up db
+```
+
+**Backend**
+```bash
+cd backend
+cp .env.example .env
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+**Frontend**
+```bash
+cd frontend
+cp .env.example .env
+pnpm install
+pnpm dev
+```
 
 ---
 
