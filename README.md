@@ -113,6 +113,7 @@ docker compose up db
 ```bash
 cd backend
 cp .env.example .env
+docker compose up # starts postgrest db
 uv sync
 uv run uvicorn app.main:app --reload
 ```
