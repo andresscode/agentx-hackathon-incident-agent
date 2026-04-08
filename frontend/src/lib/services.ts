@@ -24,12 +24,15 @@ export class ApiIncidentService implements IncidentService {
     })
 
     if (!response.ok) {
+      const errorPayload = await response.json().catch(() => null)
       return {
         success: false,
-        error: 'Service unavailable. Please try again later.',
+        error:
+          errorPayload?.error ??
+          'Something went wrong. Please try again later.',
       }
     }
 
-    return await response.json()
+    return (await response.json()) as CreateIncidentResult
   }
 }
