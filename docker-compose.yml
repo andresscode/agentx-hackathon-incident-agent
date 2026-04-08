@@ -10,11 +10,22 @@ services:
 
   backend:
     build: ./backend
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/incident_agent
+      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
     depends_on:
       db:
         condition: service_healthy
+      phoenix:
+        condition: service_started
+
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"
+      - "4317:4317"
 
   db:
     image: postgres:16-alpine
