@@ -31,7 +31,7 @@ class IncidentService(ABC):
 
 
 class MockSuccessService(IncidentService):
-    def __init__(self):
+    def __init__(self) -> None:
         self.backend_url = os.environ.get("BACKEND_URL", "http://localhost:8000")
 
     async def create_incident(self, data: IncidentPayload) -> IncidentResult:
@@ -51,7 +51,7 @@ class MockSuccessService(IncidentService):
                         "email": data.email,
                         "description": data.description,
                     },
-                    timeout=10.0
+                    timeout=10.0,
                 )
         except Exception:
             # Don't fail the incident creation if notification fails

@@ -1,5 +1,6 @@
-import httpx
 import os
+
+import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
@@ -23,7 +24,7 @@ class IncidentCreatedWebhook(BaseModel):
 
 
 @router.post("/api/notify")
-async def send_notification(request: NotificationRequest):
+async def send_notification(request: NotificationRequest) -> dict[str, str | bool]:
     """Send a notification via Apprise service"""
     try:
         async with httpx.AsyncClient() as client:
@@ -35,26 +36,25 @@ async def send_notification(request: NotificationRequest):
                     "body": request.body,
                     "type": request.notify_type,
                 },
-                timeout=30.0
+                timeout=30.0,
             )
 
             if response.status_code != 200:
                 raise HTTPException(
                     status_code=response.status_code,
-                    detail=f"Apprise service error: {response.text}"
+                    detail=f"Apprise service error: {response.text}",
                 )
 
             return {"success": True, "message": "Notification sent"}
 
     except httpx.RequestError as e:
         raise HTTPException(
-            status_code=503,
-            detail=f"Failed to connect to Apprise service: {str(e)}"
-        )
+            status_code=503, detail=f"Failed to connect to Apprise service: {e!s}"
+        ) from e
 
 
 @router.post("/api/webhook/incident-created")
-async def incident_created_webhook(data: IncidentCreatedWebhook):
+async def incident_created_webhook(data: IncidentCreatedWebhook) -> dict[str, str | bool]:
     """Webhook endpoint for incident creation notifications"""
     # Get notification URLs from environment
     slack_url = os.environ.get("SLACK_WEBHOOK_URL", "")
@@ -76,10 +76,13 @@ async def incident_created_webhook(data: IncidentCreatedWebhook):
                 json={
                     "urls": ",".join(urls),
                     "title": f"New Incident: {data.incident_id}",
-                    "body": f"Incident {data.incident_id} created by {data.name} ({data.email})\n\n{data.description}",
+                    "body": (
+                        f"Incident {data.incident_id} created by "
+                        f"{data.name} ({data.email})\n\n{data.description}"
+                    ),
                     "type": "info",
                 },
-                timeout=30.0
+                timeout=30.0,
             )
 
             if response.status_code != 200:
@@ -88,4 +91,4 @@ async def incident_created_webhook(data: IncidentCreatedWebhook):
             return {"success": True, "message": "Incident notification sent"}
 
     except httpx.RequestError as e:
-        return {"success": False, "message": f"Failed to connect to Apprise: {str(e)}"}
+        return {"success": False, "message": f"Failed to connect to Apprise: {e!s}"}
