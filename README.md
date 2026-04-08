@@ -97,7 +97,20 @@ docker compose up --build
 # Frontend:  http://localhost:3000
 # Backend:   http://localhost:8000
 # API Docs:  http://localhost:8000/docs
+# pgAdmin:   http://localhost:5050
 ```
+
+#### pgAdmin (Database UI)
+
+pgAdmin is included for browsing, querying, and managing the PostgreSQL database.
+
+1. Open **http://localhost:5050** and log in with the pgAdmin credentials defined in the `pgadmin` service in `docker-compose.yml`.
+2. Right-click **Servers** → **Register** → **Server**.
+3. **General** tab: set Name to `incident_agent`.
+4. **Connection** tab: use the host (`db`), port, username, and password from the `db` service in `docker-compose.yml`.
+5. Click **Save**.
+
+From there you can browse tables, run SQL queries, truncate tables, or drop the database entirely.
 
 > See [`QUICKGUIDE.md`](./QUICKGUIDE.md) for detailed step-by-step instructions.
 
