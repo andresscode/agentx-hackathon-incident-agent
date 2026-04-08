@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, Integer, LargeBinary, String, Text, Uuid, func
+from sqlalchemy import DateTime, Enum, LargeBinary, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -29,13 +29,6 @@ class IncidentCategory(enum.StrEnum):
     PERFORMANCE = "performance"
     DATA_ISSUE = "data_issue"
     OTHER = "other"
-
-
-class Todo(Base):
-    __tablename__ = "todos"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    title: Mapped[str] = mapped_column(String(255), nullable=False)
 
 
 class Incident(Base):
