@@ -1,15 +1,15 @@
 import logging
 
-from fastapi import APIRouter, Depends, Form, UploadFile, File
+from fastapi import APIRouter, Depends, File, Form, UploadFile
 from pydantic import BaseModel, EmailStr
-
-logger = logging.getLogger("uvicorn.error")
 
 from ..services.incidents import (
     IncidentPayload,
     IncidentService,
     get_incident_service,
 )
+
+logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter()
 

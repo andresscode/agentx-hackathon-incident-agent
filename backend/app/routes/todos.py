@@ -15,19 +15,21 @@ class TodoCreate(BaseModel):
 
 class TodoResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: int
     title: str
 
 
 @router.get("/api/todos", response_model=list[TodoResponse])
-async def list_todos(session: AsyncSession = Depends(get_session)):
+async def list_todos(session: AsyncSession = Depends(get_session)) -> list[Todo]:
     result = await session.execute(select(Todo).order_by(Todo.id))
-    return result.scalars().all()
+    return list(result.scalars().all())
 
 
 @router.post("/api/todos", response_model=TodoResponse, status_code=201)
-async def create_todo(body: TodoCreate, session: AsyncSession = Depends(get_session)):
+async def create_todo(
+    body: TodoCreate, session: AsyncSession = Depends(get_session)
+) -> Todo:
     todo = Todo(title=body.title)
     session.add(todo)
     await session.commit()
@@ -36,7 +38,9 @@ async def create_todo(body: TodoCreate, session: AsyncSession = Depends(get_sess
 
 
 @router.delete("/api/todos/{todo_id}", status_code=204)
-async def delete_todo(todo_id: int, session: AsyncSession = Depends(get_session)):
+async def delete_todo(
+    todo_id: int, session: AsyncSession = Depends(get_session)
+) -> None:
     result = await session.execute(select(Todo).where(Todo.id == todo_id))
     todo = result.scalar_one_or_none()
     if todo:

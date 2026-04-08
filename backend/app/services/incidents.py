@@ -30,7 +30,8 @@ class IncidentService(ABC):
 class MockSuccessService(IncidentService):
     async def create_incident(self, _: IncidentPayload) -> IncidentResult:
         await asyncio.sleep(1.5)
-        suffix = "".join(secrets.choice(string.ascii_uppercase + string.digits) for _ in range(6))
+        chars = string.ascii_uppercase + string.digits
+        suffix = "".join(secrets.choice(chars) for _ in range(6))
         return IncidentResult(success=True, id=f"INC-{suffix}")
 
 
