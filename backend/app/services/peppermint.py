@@ -25,7 +25,7 @@ class PeppermintClient:
         email: Optional[str] = None,
         password: Optional[str] = None,
     ):
-        self.base_url = (base_url or os.getenv("PEPPERMINT_URL", "http://localhost:5003/api/v1")).rstrip("/")
+        self.base_url = (base_url or os.getenv("PEPPERMINT_URL", "http://peppermint:5003/api/v1")).rstrip("/")
         self.email = email or os.getenv("PEPPERMINT_EMAIL", "admin@admin.com")
         self.password = password or os.getenv("PEPPERMINT_PASSWORD", "1234")
         self._token: Optional[str] = None

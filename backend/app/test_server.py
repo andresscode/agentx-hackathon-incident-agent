@@ -1,5 +1,6 @@
 """Test server to manually verify Peppermint & Apprise API calls."""
 
+import os
 import httpx
 from typing import Optional
 
@@ -9,6 +10,9 @@ from pydantic import BaseModel
 from app.services.peppermint import peppermint
 
 app = FastAPI(title="Peppermint & Apprise Test Server")
+
+# Configuration - Reads APPRISE_URL from Docker environment
+APPRISER_API = os.getenv("APPRISE_URL", "http://apprise:8000")
 
 # ─── Peppermint Endpoints ─────────────────────────────────────────────────────
 
@@ -99,14 +103,12 @@ async def apprise_notify(data: AppriseNotify):
 
     Requires Apprise API running at APPRISER_URL.
     """
-    apprise_url = "http://localhost:8000/notify"  # Adjust to your Apprise URL
-
     payload = {"title": data.title, "body": data.body}
     if data.tag:
-        payload["tag"] = data.tag
+        payload["urls"] = data.tag  # Use tag as url selector if provided
 
     async with httpx.AsyncClient() as client:
-        resp = await client.post(apprise_url, json=payload)
+        resp = await client.post(f"{APPRISER_API}/notify", json=payload)
         return {"status": resp.status_code, "body": resp.text}
 
 
@@ -139,4 +141,52 @@ async def test_full_workflow():
         "workflow": "complete",
         "ticket_id": ticket_id,
         "final_state": final,
+    }
+
+
+class IncidentAlert(BaseModel):
+    """Incident data with optional notification email."""
+    title: str = "test value"
+    description: str = "test description"
+    notify_email: str = "test-user@example.com"
+
+
+@app.post("/test/ticket-and-notify")
+async def test_ticket_and_notify(data: IncidentAlert):
+    """Create a ticket AND send an email in one call."""
+
+    # 1. Create the Ticket
+    ticket = await peppermint.create_ticket(
+        title=data.title,
+        name=data.title,
+        detail=data.description,
+        priority="critical",
+        ticket_type="incident",
+    )
+
+    # 2. Send the Email via Apprise
+    email_url = f"mailtos://agentx.nameless:tjmmywblobrggdba@gmail.com?smtp=smtp.gmail.com&port=587&mode=starttls&to={data.notify_email}"
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{APPRISER_API}/notify",
+            json={
+                "urls": email_url,
+                "title": f"New Incident: {data.title}",
+                "body": f"A new ticket has been created.\n\nDetails:\n{data.description}\n\nTicket ID: {ticket['id']}",
+            },
+        )
+
+    return {
+        "success": True,
+        "ticket_created": {
+            "id": ticket["id"],
+            "title": data.title,
+            "status": "created"
+        },
+        "notification_sent": {
+            "channel": "email",
+            "recipient": data.notify_email,
+            "status": "success" if resp.status_code == 200 else "failed"
+        }
     }

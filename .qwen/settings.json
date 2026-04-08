@@ -6,7 +6,8 @@
       "Bash(curl *)",
       "Bash(python3 *)",
       "Bash(git checkout *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(docker compose ps)"
     ]
   },
   "$version": 3
