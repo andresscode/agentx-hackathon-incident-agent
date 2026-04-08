@@ -9,7 +9,7 @@ from phoenix.otel import register
 
 from .database import Base, engine
 from .exceptions import ServiceError
-from .routes import health, incidents, todos
+from .routes import health, incidents
 
 load_dotenv()
 
@@ -44,4 +44,3 @@ async def service_error_handler(_: Request, exc: ServiceError) -> JSONResponse:
 
 app.include_router(health.router)
 app.include_router(incidents.router)
-app.include_router(todos.router)
