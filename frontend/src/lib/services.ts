@@ -4,28 +4,32 @@ import type {
   IncidentService,
 } from './types'
 
-function delay(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
+const API_BASE_URL = process.env.BACKEND_URL ?? 'http://localhost:8000'
 
-export class MockSuccessService implements IncidentService {
+export class ApiIncidentService implements IncidentService {
   async createIncident(
-    _data: CreateIncidentPayload,
+    data: CreateIncidentPayload,
   ): Promise<CreateIncidentResult> {
-    await delay(1500)
-    const id = `INC-${Math.random().toString(36).substring(2, 8).toUpperCase()}`
-    return { success: true, id }
-  }
-}
-
-export class MockFailureService implements IncidentService {
-  async createIncident(
-    _data: CreateIncidentPayload,
-  ): Promise<CreateIncidentResult> {
-    await delay(1500)
-    return {
-      success: false,
-      error: 'Service unavailable. Please try again later.',
+    const body = new FormData()
+    body.append('name', data.name)
+    body.append('email', data.email)
+    body.append('description', data.description)
+    if (data.image) {
+      body.append('image', data.image)
     }
+
+    const response = await fetch(`${API_BASE_URL}/api/incidents`, {
+      method: 'POST',
+      body,
+    })
+
+    if (!response.ok) {
+      return {
+        success: false,
+        error: 'Service unavailable. Please try again later.',
+      }
+    }
+
+    return await response.json()
   }
 }
