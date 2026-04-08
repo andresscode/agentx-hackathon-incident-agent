@@ -5,7 +5,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, EmailStr
 
 from ..exceptions import ServiceError
-from ..llm_provider import get_llm
+from ..llm_provider import LLMTask, get_llm
 from ..services.incidents import (
     IncidentPayload,
     IncidentService,
@@ -38,7 +38,7 @@ async def create_incident(
         image.filename if image and image.size else None,
     )
 
-    llm = get_llm()
+    llm = get_llm(LLMTask.CLASSIFY)
     response = await llm.ainvoke(
         [
             SystemMessage(
