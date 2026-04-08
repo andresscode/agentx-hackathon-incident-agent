@@ -4,7 +4,9 @@
       "Bash(docker rm *)",
       "Bash(docker ps *)",
       "Bash(curl *)",
-      "Bash(python3 *)"
+      "Bash(python3 *)",
+      "Bash(git checkout *)",
+      "Bash(git add *)"
     ]
   },
   "$version": 3

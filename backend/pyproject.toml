@@ -8,6 +8,7 @@ dependencies = [
     "sqlalchemy==2.0.40",
     "asyncpg==0.30.0",
     "pydantic[email]==2.11.3",
+    "httpx>=0.25.0",
     "greenlet>=3.0.0",
     "python-multipart>=0.0.24",
     "httpx>=0.28.0",
