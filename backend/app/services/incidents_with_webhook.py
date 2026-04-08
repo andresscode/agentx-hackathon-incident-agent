@@ -1,13 +1,12 @@
 import asyncio
-import os
+import contextlib
 import secrets
 import string
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-import httpx
-
 from ..exceptions import ServiceError
+from .notifications import IncidentNotification, notify_incident_created
 
 
 @dataclass
@@ -31,31 +30,21 @@ class IncidentService(ABC):
 
 
 class MockSuccessService(IncidentService):
-    def __init__(self) -> None:
-        self.backend_url = os.environ.get("BACKEND_URL", "http://localhost:8000")
-
     async def create_incident(self, data: IncidentPayload) -> IncidentResult:
         await asyncio.sleep(1.5)
         chars = string.ascii_uppercase + string.digits
         suffix = "".join(secrets.choice(chars) for _ in range(6))
         incident_id = f"INC-{suffix}"
 
-        # Send notification via webhook
-        try:
-            async with httpx.AsyncClient() as client:
-                await client.post(
-                    f"{self.backend_url}/api/webhook/incident-created",
-                    json={
-                        "incident_id": incident_id,
-                        "name": data.name,
-                        "email": data.email,
-                        "description": data.description,
-                    },
-                    timeout=10.0,
+        with contextlib.suppress(Exception):
+            await notify_incident_created(
+                IncidentNotification(
+                    incident_id=incident_id,
+                    name=data.name,
+                    email=data.email,
+                    description=data.description,
                 )
-        except Exception:
-            # Don't fail the incident creation if notification fails
-            pass
+            )
 
         return IncidentResult(success=True, id=incident_id)
 

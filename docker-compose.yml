@@ -13,7 +13,6 @@ services:
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/incident_agent
       - APPRISE_URL=http://apprise:8000
-      - BACKEND_URL=http://backend:8000
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
       - EMAIL_SMTP_URL=${EMAIL_SMTP_URL:-}
     depends_on:

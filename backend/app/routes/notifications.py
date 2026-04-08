@@ -4,6 +4,8 @@ import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from ..services.notifications import IncidentNotification, notify_incident_created
+
 router = APIRouter()
 
 APPRISE_URL = os.environ.get("APPRISE_URL", "http://apprise:8000")
@@ -54,41 +56,15 @@ async def send_notification(request: NotificationRequest) -> dict[str, str | boo
 
 
 @router.post("/api/webhook/incident-created")
-async def incident_created_webhook(data: IncidentCreatedWebhook) -> dict[str, str | bool]:
-    """Webhook endpoint for incident creation notifications"""
-    # Get notification URLs from environment
-    slack_url = os.environ.get("SLACK_WEBHOOK_URL", "")
-    email_url = os.environ.get("EMAIL_SMTP_URL", "")
-
-    urls = []
-    if slack_url:
-        urls.append(slack_url)
-    if email_url:
-        urls.append(email_url)
-
-    if not urls:
-        return {"success": False, "message": "No notification URLs configured"}
-
-    try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                f"{APPRISE_URL}/notify",
-                json={
-                    "urls": ",".join(urls),
-                    "title": f"New Incident: {data.incident_id}",
-                    "body": (
-                        f"Incident {data.incident_id} created by "
-                        f"{data.name} ({data.email})\n\n{data.description}"
-                    ),
-                    "type": "info",
-                },
-                timeout=30.0,
-            )
-
-            if response.status_code != 200:
-                return {"success": False, "message": f"Apprise error: {response.text}"}
-
-            return {"success": True, "message": "Incident notification sent"}
-
-    except httpx.RequestError as e:
-        return {"success": False, "message": f"Failed to connect to Apprise: {e!s}"}
+async def incident_created_webhook(
+    data: IncidentCreatedWebhook,
+) -> dict[str, str | bool]:
+    """Webhook endpoint for external callers to trigger incident notifications"""
+    return await notify_incident_created(
+        IncidentNotification(
+            incident_id=data.incident_id,
+            name=data.name,
+            email=data.email,
+            description=data.description,
+        )
+    )
