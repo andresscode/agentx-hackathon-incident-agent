@@ -1,0 +1,37 @@
+services:
+  peppermint-db:
+    container_name: peppermint-db
+    image: postgres:16-alpine
+    restart: always
+    ports:
+      - "5433:5432"
+    volumes:
+      - peppermint-pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: peppermint
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: peppermint
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U peppermint"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  peppermint:
+    container_name: peppermint
+    image: pepperlabs/peppermint:latest
+    ports:
+      - "3001:3000"
+      - "5003:5003"
+    restart: always
+    depends_on:
+      peppermint-db:
+        condition: service_healthy
+    environment:
+      DB_USERNAME: "peppermint"
+      DB_PASSWORD: "1234"
+      DB_HOST: "peppermint-db"
+      SECRET: "peppermint4life"
+
+volumes:
+  peppermint-pgdata:

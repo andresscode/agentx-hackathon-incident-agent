@@ -10,15 +10,20 @@ services:
 
   backend:
     build: ./backend
+    env_file:
+      - .env
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/incident_agent
       - APPRISE_URL=http://apprise:8000
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
       - EMAIL_SMTP_URL=${EMAIL_SMTP_URL:-}
+      - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
     depends_on:
       db:
         condition: service_healthy
       apprise:
+        condition: service_started
+      phoenix:
         condition: service_started
 
   apprise:
@@ -35,6 +40,15 @@ services:
       timeout: 10s
       retries: 3
 
+  phoenix:
+    image: arizephoenix/phoenix:latest
+    ports:
+      - "6006:6006"
+      - "4317:4317"
+    depends_on:
+      db:
+        condition: service_healthy
+
   db:
     image: postgres:16-alpine
     environment:
@@ -49,6 +63,39 @@ services:
       timeout: 3s
       retries: 5
 
+  peppermint-db:
+    container_name: peppermint-db
+    image: postgres:16-alpine
+    restart: always
+    volumes:
+      - peppermint-pgdata:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: peppermint
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: peppermint
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U peppermint"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  peppermint:
+    container_name: peppermint
+    image: pepperlabs/peppermint:latest
+    ports:
+      - "3001:3000"
+      - "5003:5003"
+    restart: always
+    depends_on:
+      peppermint-db:
+        condition: service_healthy
+    environment:
+      DB_USERNAME: "peppermint"
+      DB_PASSWORD: "1234"
+      DB_HOST: "peppermint-db"
+      SECRET: "peppermint4life"
+
 volumes:
   pgdata:
   apprise_config:
+  peppermint-pgdata:
