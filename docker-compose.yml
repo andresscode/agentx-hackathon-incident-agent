@@ -12,9 +12,29 @@ services:
     build: ./backend
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/incident_agent
+      - APPRISE_URL=http://apprise:8000
+      - BACKEND_URL=http://backend:8000
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - EMAIL_SMTP_URL=${EMAIL_SMTP_URL:-}
     depends_on:
       db:
         condition: service_healthy
+      apprise:
+        condition: service_started
+
+  apprise:
+    image: caronc/apprise:v1.3.3
+    ports:
+      - "8001:8000"
+    environment:
+      - APPRISE_CONFIG_DIR=/config
+    volumes:
+      - apprise_config:/config
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   db:
     image: postgres:16-alpine
@@ -32,3 +52,4 @@ services:
 
 volumes:
   pgdata:
+  apprise_config:
