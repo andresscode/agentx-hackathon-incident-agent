@@ -10,12 +10,14 @@ dependencies = [
     "pydantic[email]==2.11.3",
     "greenlet>=3.0.0",
     "python-multipart>=0.0.24",
-    # LLM providers — install all so anyone can switch via LLM_PROVIDER without reinstalling
     "langchain-core>=0.3",
-    "langchain-openai>=0.3",      # covers openai + openrouter (OpenAI-compatible)
+    "langchain-openai>=0.3",
     "langchain-anthropic>=0.3",
     "langchain-google-genai>=2.0",
-    "langgraph>=0.3",             # agent framework used by the triage agent
+    "langgraph>=0.3",
+    "python-dotenv>=1.2.2",
+    "arize-phoenix-otel>=0.15.0",
+    "openinference-instrumentation-langchain>=0.1.62",
 ]
 
 [dependency-groups]

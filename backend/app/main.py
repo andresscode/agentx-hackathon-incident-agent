@@ -1,13 +1,19 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from phoenix.otel import register
 
 from .database import Base, engine
 from .exceptions import ServiceError
 from .routes import health, incidents, todos
+
+load_dotenv()
+
+tracer_provider = register(project_name="default", auto_instrument=True)
 
 
 @asynccontextmanager

@@ -3,7 +3,8 @@ LLM provider abstraction for multi-provider support.
 
 To switch providers, set these environment variables:
   LLM_PROVIDER = openai | anthropic | google | openrouter
-  LLM_MODEL    = model name for the chosen provider (e.g. gpt-4o, claude-3-5-sonnet-20241022)
+  LLM_MODEL    = model name for the chosen provider
+                 (e.g. gpt-4o, claude-3-5-sonnet-20241022)
 
 Only the API key for the active provider is required:
   OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY, or OPENROUTER_API_KEY
@@ -15,6 +16,7 @@ many models (GPT, Claude, Gemini, Llama…) with a single key. It's the default.
 import os
 
 from langchain_core.language_models.chat_models import BaseChatModel
+from pydantic import SecretStr
 
 
 def get_llm() -> BaseChatModel:
@@ -28,7 +30,7 @@ def get_llm() -> BaseChatModel:
 
         return ChatOpenAI(
             model=model or "gpt-4o-mini",
-            api_key=api_key,  # type: ignore[arg-type]
+            api_key=SecretStr(api_key),
         )
 
     if provider == "anthropic":
@@ -37,7 +39,7 @@ def get_llm() -> BaseChatModel:
 
         return ChatAnthropic(
             model=model or "claude-3-5-haiku-20241022",
-            api_key=api_key,  # type: ignore[arg-type]
+            api_key=SecretStr(api_key),
         )
 
     if provider == "google":
@@ -46,7 +48,7 @@ def get_llm() -> BaseChatModel:
 
         return ChatGoogleGenerativeAI(
             model=model or "gemini-2.0-flash",
-            google_api_key=api_key,  # type: ignore[arg-type]
+            google_api_key=SecretStr(api_key),
         )
 
     if provider == "openrouter":
@@ -56,20 +58,31 @@ def get_llm() -> BaseChatModel:
         # OpenRouter is OpenAI-compatible — just point to a different base URL.
         return ChatOpenAI(
             model=model or "openai/gpt-4o-mini",
-            api_key=api_key,  # type: ignore[arg-type]
+            api_key=SecretStr(api_key),
             base_url="https://openrouter.ai/api/v1",
+        )
+
+    if provider == "aigateway":
+        api_key = _require_key("AI_GATEWAY_API_KEY", provider)
+        from langchain_openai import ChatOpenAI
+
+        # AI Gateway is OpenAI-compatible — just point to a different base URL.
+        return ChatOpenAI(
+            model=model or "google/gemini-2.5-flash-lite",
+            api_key=SecretStr(api_key),
+            base_url="https://ai-gateway.vercel.sh/v1",
         )
 
     raise ValueError(
         f"Unknown LLM_PROVIDER '{provider}'. "
-        "Valid options: openai | anthropic | google | openrouter"
+        "Valid options: openai | anthropic | google | openrouter | aigateway"
     )
 
 
 def _require_key(env_var: str, provider: str) -> str:
     value = os.getenv(env_var)
     if not value:
-        raise EnvironmentError(
+        raise OSError(
             f"LLM_PROVIDER is set to '{provider}' but {env_var} is not set. "
             f"Add {env_var} to your .env file."
         )
