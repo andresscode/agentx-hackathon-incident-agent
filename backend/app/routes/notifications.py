@@ -4,7 +4,11 @@ import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from ..services.notifications import IncidentNotification, notify_incident_created
+from ..services.notifications import (
+    IncidentNotification,
+    notify_incident_created,
+    send_email,
+)
 
 router = APIRouter()
 
@@ -16,6 +20,12 @@ class NotificationRequest(BaseModel):
     title: str
     body: str
     notify_type: str = "info"
+
+
+class EmailRequest(BaseModel):
+    to: str
+    subject: str
+    body: str
 
 
 class IncidentCreatedWebhook(BaseModel):
@@ -53,6 +63,15 @@ async def send_notification(request: NotificationRequest) -> dict[str, str | boo
         raise HTTPException(
             status_code=503, detail=f"Failed to connect to Apprise service: {e!s}"
         ) from e
+
+
+@router.post("/api/notify/email")
+async def send_email_notification(data: EmailRequest) -> dict[str, str | bool]:
+    """Send an email to a specific recipient.
+
+    No complex URL building needed — just specify the recipient, subject, and body.
+    """
+    return await send_email(to=data.to, subject=data.subject, body=data.body)
 
 
 @router.post("/api/webhook/incident-created")

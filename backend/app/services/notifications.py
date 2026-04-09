@@ -83,3 +83,41 @@ async def notify_incident_created(data: IncidentNotification) -> dict[str, str |
     except httpx.RequestError as e:
         logger.error("Failed to connect to Apprise: %s", e)
         return {"success": False, "message": f"Failed to connect to Apprise: {e!s}"}
+
+
+async def send_email(to: str, subject: str, body: str) -> dict[str, str | bool]:
+    """Send an email to a specific recipient using the configured SMTP settings."""
+    raw_email_url = os.environ.get("EMAIL_SMTP_URL", "")
+    email_url = build_apprise_email_url(raw_email_url)
+
+    if not email_url:
+        logger.warning("EMAIL_SMTP_URL not configured, skipping email")
+        return {"success": False, "message": "EMAIL_SMTP_URL not configured"}
+
+    # Append recipient to the URL
+    if "&to=" not in email_url:
+        email_url = f"{email_url}&to={urllib.parse.quote(to)}"
+    else:
+        email_url = f"{email_url},{urllib.parse.quote(to)}"
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                f"{APPRISE_URL}/notify",
+                json={
+                    "urls": email_url,
+                    "title": subject,
+                    "body": body,
+                    "type": "info",
+                },
+                timeout=30.0,
+            )
+
+            if response.status_code != 200:
+                return {"success": False, "message": f"Apprise error: {response.text}"}
+
+            return {"success": True, "message": "Email sent successfully"}
+
+    except httpx.RequestError as e:
+        logger.error("Failed to connect to Apprise: %s", e)
+        return {"success": False, "message": f"Failed to connect to Apprise: {e!s}"}
