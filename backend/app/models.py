@@ -2,7 +2,16 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, LargeBinary, String, Text, Uuid, func
+from sqlalchemy import (
+    DateTime,
+    Enum,
+    Integer,
+    LargeBinary,
+    String,
+    Text,
+    Uuid,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -51,6 +60,8 @@ class Incident(Base):
         Enum(IncidentCategory), nullable=True
     )
     triage_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    severity_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    assigned_team: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

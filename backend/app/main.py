@@ -10,6 +10,7 @@ from phoenix.otel import register
 from .database import Base, engine
 from .exceptions import ServiceError
 from .routes import health, incidents
+from .workflows.hooks import notification_hook, peppermint_hook, register_hook
 
 load_dotenv()
 
@@ -44,3 +45,7 @@ async def service_error_handler(_: Request, exc: ServiceError) -> JSONResponse:
 
 app.include_router(health.router)
 app.include_router(incidents.router)
+
+# Register triage integration hooks
+register_hook(peppermint_hook)
+register_hook(notification_hook)

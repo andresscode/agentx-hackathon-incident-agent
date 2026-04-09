@@ -6,6 +6,7 @@ from pydantic import BaseModel, EmailStr, Field
 
 from ..exceptions import ServiceError
 from ..llm_provider import LLMTask, get_llm
+from ..models import Incident
 from ..prompts import PROMPT_INJECTION_SYSTEM_PROMPT
 from ..services.incidents import (
     IncidentPayload,
@@ -29,6 +30,22 @@ class PromptInjectionVerdict(BaseModel):
 class CreateIncidentResponse(BaseModel):
     success: bool
     id: str
+
+
+class IncidentDetailResponse(BaseModel):
+    id: str
+    name: str
+    email: str
+    description: str
+    status: str
+    priority: str | None = None
+    category: str | None = None
+    severity_score: int | None = None
+    assigned_team: str | None = None
+    triage_summary: str | None = None
+    has_image: bool
+    created_at: str
+    updated_at: str
 
 
 @router.post("/api/incidents", response_model=CreateIncidentResponse, status_code=201)
@@ -97,3 +114,40 @@ async def create_incident(
     background_tasks.add_task(service.triage_incident, result.id)
 
     return CreateIncidentResponse(success=result.success, id=result.id)
+
+
+def _incident_to_response(incident: Incident) -> IncidentDetailResponse:
+    return IncidentDetailResponse(
+        id=str(incident.id),
+        name=incident.name,
+        email=incident.email,
+        description=incident.description,
+        status=incident.status.value,
+        priority=incident.priority.value if incident.priority else None,
+        category=incident.category.value if incident.category else None,
+        severity_score=incident.severity_score,
+        assigned_team=incident.assigned_team,
+        triage_summary=incident.triage_summary,
+        has_image=incident.image_data is not None,
+        created_at=incident.created_at.isoformat(),
+        updated_at=incident.updated_at.isoformat(),
+    )
+
+
+@router.get("/api/incidents/{incident_id}", response_model=IncidentDetailResponse)
+async def get_incident(
+    incident_id: str,
+    service: IncidentService = Depends(get_incident_service),
+) -> IncidentDetailResponse:
+    incident = await service.get_incident(incident_id)
+    if not incident:
+        raise ServiceError("Incident not found", status_code=404)
+    return _incident_to_response(incident)
+
+
+@router.get("/api/incidents", response_model=list[IncidentDetailResponse])
+async def list_incidents(
+    service: IncidentService = Depends(get_incident_service),
+) -> list[IncidentDetailResponse]:
+    incidents = await service.list_incidents()
+    return [_incident_to_response(inc) for inc in incidents]
