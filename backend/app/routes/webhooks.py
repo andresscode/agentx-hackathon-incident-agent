@@ -2,17 +2,16 @@
 
 import json
 import logging
-import os
 import re
 
 import httpx
 from fastapi import APIRouter, Request
 
+from ..config import settings
+
 logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter()
-
-APPRISE_URL = os.environ.get("APPRISE_URL", "http://apprise:8000")
 
 
 def build_apprise_email_url(raw_url: str) -> str:
@@ -130,8 +129,7 @@ async def peppermint_ticket_webhook(request: Request):
         return {"success": True, "message": "Status change ignored (ticket not completed)"}
 
     # Build email URL
-    raw_smtp = os.environ.get("EMAIL_SMTP_URL", "")
-    email_url = build_apprise_email_url(raw_smtp)
+    email_url = build_apprise_email_url(settings.EMAIL_SMTP_URL)
     if not email_url:
         logger.error("Webhook: EMAIL_SMTP_URL not configured")
         return {"success": False, "message": "EMAIL_SMTP_URL not configured"}
@@ -153,7 +151,7 @@ async def peppermint_ticket_webhook(request: Request):
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.post(
-                f"{APPRISE_URL}/notify",
+                f"{settings.APPRISE_URL}/notify",
                 json={
                     "urls": email_url,
                     "title": subject,

@@ -9,11 +9,37 @@ from .database import Base, engine
 from .exceptions import ServiceError
 from .routes import health, incidents, notifications, webhooks
 
+# ─── OpenTelemetry / Phoenix ──────────────────────────────────────────────────
+from .config import settings
+
+if settings.PHOENIX_COLLECTOR_ENDPOINT:
+    from phoenix.otel import register
+    from openinference.instrumentation.langchain import LangChainInstrumentor
+    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
+    import logging
+
+    register(endpoint=f"{settings.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces", verbose=False)
+
+    # Instrument HTTPX and LangChain (don't need app instance)
+    HTTPXClientInstrumentor().instrument()
+    LangChainInstrumentor().instrument()
+
+    logging.getLogger(__name__).info("OpenTelemetry connected to Phoenix at %s", settings.PHOENIX_COLLECTOR_ENDPOINT)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    # Instrument FastAPI + SQLAlchemy after app + engine exist
+    if settings.PHOENIX_COLLECTOR_ENDPOINT:
+        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
+
+        FastAPIInstrumentor.instrument_app(app)
+        SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+
     yield
     await engine.dispose()
 

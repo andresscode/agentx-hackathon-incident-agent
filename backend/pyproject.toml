@@ -18,6 +18,13 @@ dependencies = [
     "langchain-anthropic>=0.3",
     "langchain-google-genai>=2.0",
     "langgraph>=0.3",             # agent framework used by the triage agent
+    # Observability
+    "arize-phoenix-otel>=0.4",
+    "opentelemetry-exporter-otlp>=1.29",
+    "opentelemetry-instrumentation-fastapi>=0.50",
+    "opentelemetry-instrumentation-httpx>=0.50",
+    "opentelemetry-instrumentation-sqlalchemy>=0.50",
+    "openinference-instrumentation-langchain>=0.1",
 ]
 
 [dependency-groups]
