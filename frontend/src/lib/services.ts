@@ -1,6 +1,7 @@
 import type {
   CreateIncidentPayload,
   CreateIncidentResult,
+  IncidentDetail,
   IncidentService,
 } from './types'
 
@@ -34,5 +35,13 @@ export class ApiIncidentService implements IncidentService {
     }
 
     return (await response.json()) as CreateIncidentResult
+  }
+
+  async listIncidents(): Promise<IncidentDetail[]> {
+    const response = await fetch(`${API_BASE_URL}/api/incidents`, {
+      cache: 'no-store',
+    })
+    if (!response.ok) return []
+    return response.json()
   }
 }

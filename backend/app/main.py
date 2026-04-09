@@ -10,6 +10,7 @@ from phoenix.otel import register
 from .database import Base, engine
 from .exceptions import ServiceError
 from .routes import health, incidents
+from .seed import seed
 from .workflows.hooks import notification_hook, peppermint_hook, register_hook
 
 load_dotenv()
@@ -21,6 +22,9 @@ tracer_provider = register(project_name="default", auto_instrument=True)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+    await seed()
+
     yield
     await engine.dispose()
 
