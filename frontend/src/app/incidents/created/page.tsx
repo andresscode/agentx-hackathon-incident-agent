@@ -13,7 +13,7 @@ export default function IncidentCreatedPage() {
             <CheckCircle2 className="size-7 text-chart-3" />
           </div>
           <div className="space-y-1.5">
-            <h1 className="text-xl font-bold tracking-tight font-(family-name:--font-geist-mono)">
+            <h1 className="text-xl font-bold tracking-tight font-mono">
               Incident Reported Successfully
             </h1>
             <p className="text-sm text-muted-foreground text-balance">
@@ -23,9 +23,16 @@ export default function IncidentCreatedPage() {
           </div>
         </CardContent>
         <CardFooter className="justify-center">
-          <Button asChild>
-            <Link href="/">Report Another Incident</Link>
-          </Button>
+          <div className="flex flex-col gap-3">
+            <Button asChild>
+              <Link href="/">Continue Shopping</Link>
+            </Button>
+            <Button variant="ghost" asChild>
+              <Link href="/incidents/create" className="text-foreground/60">
+                Report Another Incident
+              </Link>
+            </Button>
+          </div>
         </CardFooter>
       </Card>
     </main>
