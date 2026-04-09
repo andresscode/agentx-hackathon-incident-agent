@@ -40,7 +40,7 @@ async def peppermint_hook(state: dict[str, Any]) -> None:
 
 
 async def notification_hook(state: dict[str, Any]) -> None:
-    """Send Apprise notification (Slack + email) about the triaged incident."""
+    """Send Apprise notification (Discord + email) about the triaged incident."""
     from ..services.notifications import (  # type: ignore[import-not-found]
         IncidentNotification,
         notify_incident_created,
