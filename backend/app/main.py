@@ -1,30 +1,19 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from phoenix.otel import register
 
 from .database import Base, engine
 from .exceptions import ServiceError
-from .routes import health, incidents
-from .seed import seed
-from .workflows.hooks import notification_hook, peppermint_hook, register_hook
-
-load_dotenv()
-
-tracer_provider = register(project_name="default", auto_instrument=True)
+from .routes import health, incidents, notifications, todos
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
-
-    await seed()
-
     yield
     await engine.dispose()
 
@@ -49,7 +38,5 @@ async def service_error_handler(_: Request, exc: ServiceError) -> JSONResponse:
 
 app.include_router(health.router)
 app.include_router(incidents.router)
-
-# Register triage integration hooks
-register_hook(peppermint_hook)
-register_hook(notification_hook)
+app.include_router(notifications.router)
+app.include_router(todos.router)
