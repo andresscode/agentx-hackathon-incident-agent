@@ -1,207 +1,263 @@
-# 🚨 SRE Incident Agent — AgentX Hackathon
+# SRE Incident Intake & Triage Agent
 
-> Intelligent SRE incident intake and classification agent for e-commerce applications, featuring automated triage, ticket management, end-to-end notifications, and full observability.
+> Intelligent SRE incident intake and triage agent for e-commerce applications, featuring automated classification, codebase-aware root cause analysis, ticket management, team notifications, and full observability.
 
----
-
-## 📋 Project Overview
-
-A multi-agent system that ingests incident reports (text, images, logs, video), performs automated triage by analyzing code and documentation, creates tickets in the chosen ticketing system, notifies the engineering team, and closes the loop by notifying the original reporter once the incident is resolved.
-
-Built for the **AgentX Hackathon** — [#AgentXHackathon](https://youtube.com)
+Built for the **AgentX Hackathon**
 
 ---
 
-## 🔄 Core End-to-End Flow
+## Core End-to-End Flow
 
 ```
 [Reporter]
-    │
-    ▼ (1) Submits multimodal report (text + image/log/video)
-┌─────────────────────────────────────────────────────┐
-│               Frontend — Next.js                    │
-└─────────────────────────────────────────────────────┘
-    │
-    ▼ (2) Automated triage
-┌─────────────────────────────────────────────────────┐
-│          SRE Agent — FastAPI + LangGraph            │
-│  · Extracts key incident details                    │
-│  · Analyzes e-commerce repo code & documentation    │
-│  · Generates technical summary + severity score     │
-│  · Prompt injection protection                      │
-└─────────────────────────────────────────────────────┘
-    │
-    ├──▶ (3) Creates ticket in Jira / Linear / Peppermint
-    │
-    ├──▶ (4) Notifies engineering team (Email + Slack)
-    │
-    ▼ (5) Ticket resolved → notifies original reporter
-[Reporter] ◀───────────────────────────────────────────
+    |
+    v  (1) Submits incident report (text + optional screenshot)
++---------------------------------------------------+
+|              Frontend - Next.js                    |
+|  Client-side validation (Zod + vard)              |
++---------------------------------------------------+
+    |
+    v  (2) Automated triage (background, 10-20 seconds)
++---------------------------------------------------+
+|         SRE Triage Agent - FastAPI + LangGraph     |
+|  . Prompt injection check (LLM security gate)     |
+|  . Classifies: category, priority, severity, team |
+|  . Searches Reaction Commerce codebase             |
+|  . Generates technical triage report               |
++---------------------------------------------------+
+    |
+    |---> (3) Creates ticket in Peppermint
+    |
+    |---> (4) Notifies engineering team (Discord + Email via Apprise)
+    |
+    v  (5) Ticket resolved -> notifies original reporter
+[Reporter] <-----------------------------------------
 ```
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
-┌─────────────────┐     ┌──────────────────────────┐     ┌─────────────────┐
-│   Frontend      │────▶│        Backend           │────▶│   PostgreSQL    │
-│  Next.js +      │     │  FastAPI + Python (UV)   │     │  + pgvector     │
-│  Tailwind CSS   │     │  LangChain / LangGraph   │     └─────────────────┘
-│  shadcn/ui      │     └──────────────────────────┘
-└─────────────────┘              │
-                     ┌───────────┼─────────────┐
-                     ▼           ▼             ▼
-              ┌──────────┐ ┌──────────┐ ┌───────────────┐
-              │ Ticketing│ │  Email + │ │ Observability │
-              │Jira/Linear│ │  Slack  │ │LangFuse/Phoenix│
-              └──────────┘ └──────────┘ └───────────────┘
++-----------------+     +---------------------------+     +---------------+
+|   Frontend      |---->|        Backend             |---->|  PostgreSQL   |
+|  Next.js 15     |     |  FastAPI + LangGraph       |     +---------------+
+|  React 19       |     |  LangChain                 |
+|  Tailwind CSS   |     +---------------------------+
+|  shadcn/ui      |              |
++-----------------+   +----------+-----------+
+                      v          v           v
+               +----------+ +----------+ +-----------+
+               |Peppermint| | Apprise  | |  Phoenix  |
+               | (tickets)| |(Discord/   | |  (OTEL    |
+               |  :3001   | | Email)   | |  traces)  |
+               +----------+ +----------+ |   :6006   |
+                                          +-----------+
 ```
 
 ### Tech Stack
 
-| Layer               | Technology                                                   |
-|---------------------|--------------------------------------------------------------|
-| **Frontend**        | Next.js + Tailwind CSS + shadcn/ui                           |
-| **Backend / API**   | FastAPI + Python + UV                                        |
-| **AI Agents**       | LangChain / LangGraph                                        |
-| **Models**          | Multimodal LLM via API (Anthropic / GCP Vertex / OpenRouter) |
-| **Database**        | PostgreSQL + pgvector                                        |
-| **Ticketing**       | Jira / Linear / Peppermint (open source)                     |
-| **Notifications**   | Email + Slack                                                |
-| **Observability**   | LangFuse / Phoenix (Arize)                                   |
-| **Containers**      | Docker Compose                                               |
-| **E-commerce repo** | _(mid/full complexity open source — see `AGENTS_USE.md`)_    |
-
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | Next.js 15, React 19, TypeScript, Tailwind CSS, shadcn/ui, Zod |
+| **Backend** | Python 3.12, FastAPI, LangGraph, LangChain, SQLAlchemy (async) |
+| **Database** | PostgreSQL 16 |
+| **LLM** | OpenAI, Anthropic, Google Gemini, OpenRouter, AI Gateway (configurable) |
+| **Observability** | Arize Phoenix (OpenTelemetry), OpenInference LangChain instrumentation |
+| **Ticketing** | Peppermint (open source) |
+| **Notifications** | Apprise (Discord + email) |
+| **Security** | Dual-layer prompt injection defense (vard client-side + LLM classifier server-side) |
+| **E-commerce repo** | Reaction Commerce (Node.js, indexed at Docker build time) |
+| **Infrastructure** | Docker Compose |
 
 ---
 
-## 🚀 Quickstart
+## Quick Start
 
-### Prerequisites (Testing)
+### Prerequisites
 
 - Docker & Docker Compose
+- An API key for at least one LLM provider
+
+### 1. Configure environment
 
 ```bash
-# 1. Clone the repository
 git clone https://github.com/andresscode/agentx-hackathon-incident-agent.git
 cd agentx-hackathon-incident-agent
-
-# 2. Copy environment variables and fill in your keys
 cp .env.example .env
-
-# 3. Start all services
-docker compose up --build
-
-# Services available at:
-# Frontend:  http://localhost:3000
-# Backend:   http://localhost:8000
-# API Docs:  http://localhost:8000/docs
-# pgAdmin:   http://localhost:5050
 ```
 
-#### pgAdmin (Database UI)
+Edit `.env` and set your LLM provider and API key:
 
-pgAdmin is included for browsing, querying, and managing the PostgreSQL database.
+```env
+LLM_PROVIDER=openrouter          # openai | anthropic | google | openrouter | aigateway
+OPENROUTER_API_KEY=sk-or-...     # only the key for your chosen provider is required
+```
 
-1. Open **http://localhost:5050** and log in with the pgAdmin credentials defined in the `pgadmin` service in `docker-compose.yml`.
-2. Right-click **Servers** → **Register** → **Server**.
-3. **General** tab: set Name to `incident_agent`.
-4. **Connection** tab: use the host (`db`), port, username, and password from the `db` service in `docker-compose.yml`.
-5. Click **Save**.
+### 2. Start all services
 
-From there you can browse tables, run SQL queries, truncate tables, or drop the database entirely.
+```bash
+docker compose up --build
+```
 
-> See [`QUICKGUIDE.md`](./QUICKGUIDE.md) for detailed step-by-step instructions.
+First build takes ~2 minutes (clones and indexes the Reaction Commerce codebase).
 
-### Local Development (without Docker)
+### 3. Use the application
 
-- Node.js 20+, pnpm
-- Python 3.12+, uv
+| Service | URL | Credentials |
+|---------|-----|------------|
+| **Incident Form** | http://localhost:3000 | -- |
+| **Backend API** | http://localhost:8000 | -- |
+| **API Docs** | http://localhost:8000/docs | -- |
+| **Phoenix Traces** | http://localhost:6006 | -- |
+| **Peppermint Tickets** | http://localhost:3001 | `admin@admin.com` / `1234` |
+| **pgAdmin** | http://localhost:5050 | `admin@admin.com` / `admin` |
 
-**Backend**
+> See [`QUICKGUIDE.md`](./QUICKGUIDE.md) for a step-by-step evaluator walkthrough.
+
+### pgAdmin Setup
+
+1. Open http://localhost:5050 and log in
+2. Right-click **Servers** > **Register** > **Server**
+3. **General** tab: Name = `incident_agent`
+4. **Connection** tab: Host = `db`, Port = `5432`, Username = `postgres`, Password = `postgres`
+5. Click **Save**
+
+---
+
+## Local Development
+
+### Backend
+
 ```bash
 cd backend
-cp .env.example .env
-docker compose up # starts postgrest db
-uv sync
-uv run uvicorn app.main:app --reload
+cp .env.example .env       # configure LLM provider + API key
+docker compose up -d       # start PostgreSQL + Phoenix
+uv sync                    # install dependencies
+make dev                   # start FastAPI with hot reload (localhost:8000)
 ```
 
-**Frontend**
+Make targets: `make dev` | `make lint` | `make typecheck`
+
+### Frontend
+
 ```bash
 cd frontend
-cp .env.example .env
+cp .env.example .env       # set BACKEND_URL=http://localhost:8000
 pnpm install
-pnpm dev
+pnpm dev                   # start Next.js dev server (localhost:3000)
 ```
 
 ---
 
-## 📁 Repository Structure
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| POST | `/api/incidents` | Create incident (multipart: name, email, description, image?) |
+| GET | `/api/incidents/{id}` | Get incident with triage results |
+| GET | `/api/incidents` | List all incidents (newest first) |
+| GET | `/api/health` | Health check |
+
+---
+
+## Key Features
+
+- **Multimodal input** -- text descriptions + image/screenshot uploads (PNG, JPEG, GIF, WebP)
+- **AI-powered triage** -- automatic classification by category, priority, severity (1-10), and team routing
+- **Codebase-aware** -- searches Reaction Commerce source code for relevant files, includes actual code snippets in reports
+- **Structured LLM output** -- Pydantic models with constrained enums ensure consistent, parseable results
+- **Prompt injection defense** -- dual-layer: client-side heuristic (vard) + server-side LLM classifier
+- **Pluggable hooks** -- add integrations without modifying the triage pipeline
+- **Multi-provider LLM** -- switch between 5 providers via a single environment variable
+- **Full observability** -- Arize Phoenix traces every LLM call with tokens, latency, and prompt content
+
+---
+
+## Repository Structure
 
 ```
 .
-├── frontend/              # Next.js + Tailwind
-├── backend/
-│   ├── agents/            # LangGraph orchestration — SRE agent
-│   ├── api/               # FastAPI endpoints
-│   ├── integrations/      # Ticketing, Email, Slack
-│   └── db/                # PostgreSQL models + pgvector
-├── docker-compose.yml
-├── .env.example
-├── README.md              # This file
-├── AGENTS_USE.md          # Use cases, implementation & security
-├── SCALING.md             # Scalability & technical decisions
-├── QUICKGUIDE.md          # Quick run guide
-└── LICENSE                # MIT
+├── frontend/                 # Next.js 15 application
+│   ├── src/app/              # Pages (incident form, success)
+│   ├── src/components/       # UI components (incident-form, shadcn)
+│   └── src/lib/              # Schemas, services, hooks, types
+├── backend/                  # FastAPI application
+│   ├── app/
+│   │   ├── routes/           # API endpoints
+│   │   ├── services/         # Business logic
+│   │   ├── workflows/        # LangGraph triage pipeline + hooks
+│   │   ├── schemas/          # Pydantic models for LLM structured output
+│   │   ├── tools/            # Codebase search index
+│   │   ├── models.py         # SQLAlchemy Incident model
+│   │   ├── prompts.py        # All LLM system prompts
+│   │   └── llm_provider.py   # Multi-provider LLM abstraction
+│   └── scripts/              # Codebase indexing script
+├── infrastructure/           # Standalone docker-compose files
+├── docker-compose.yml        # Full-stack deployment
+├── AGENTS_USE.md             # Agent documentation (hackathon template)
+├── SCALING.md                # Scalability analysis
+├── QUICKGUIDE.md             # Evaluator quick guide
+├── FLOW.md                   # Detailed system flow
+├── CHECKLIST.md              # Implementation status
+└── TODO.md                   # Remaining integration work
 ```
 
 ---
 
-## 🔒 Security & Responsible AI
+## Security & Responsible AI
 
-- **Prompt injection protection**: inputs are validated and sanitized before reaching the LLM.
-- **Safe tool usage**: agents operate with minimum required permissions.
-- **Privacy**: sensitive incident data is not logged in plain text.
-- **Transparency**: every agent decision is traceable via LangFuse/Phoenix.
-- **Fairness & accountability**: aligned with the hackathon's responsible AI principles.
-
----
-
-## 📊 Observability
-
-Trace coverage across all pipeline stages:
-
-| Stage         | Captured Metrics                      | 
-|---------------|---------------------------------------|                      
-| Ingestion     | Input received, modality, size        |
-| Triage        | Tokens used, model, assigned severity |
-| Ticket        | Created ID, target system, latency    |
-| Notification  | Channel, recipient, delivery status   |
-| Resolution    | Total time, responsible agent         |
+- **Prompt injection protection**: dual-layer defense -- client-side heuristic detection (vard) + server-side LLM classification with structured output
+- **Safe input handling**: Zod + Pydantic validation at every boundary, file type/size restrictions
+- **Tool safety**: agent has read-only access to codebase index, write access limited to ticket creation and notifications
+- **Data handling**: API keys in environment variables wrapped in `SecretStr`, unsafe input never logged or exposed in responses
+- **Transparency**: every agent decision is traceable via Arize Phoenix
 
 ---
 
-## 🌿 Git Workflow
+## Observability
 
-- **`main`** — stable branch
-- **`develop`** — feature integration
-- **`feature/<name>`** — one branch per task, created from `develop`
+| Stage | What is traced |
+|-------|---------------|
+| Ingestion | Input received, prompt injection verdict, incident ID |
+| Classification | Category, priority, severity, team, reasoning, tokens, latency |
+| Codebase Search | Keywords, matched files, LLM file selection |
+| Summary | Full triage report, tokens, latency |
+| Hooks | Ticket creation, notification dispatch, success/failure |
 
----
-
-## 👥 Team
-
-| Handle            | Role                          |
-|-------------------|-------------------------------|
-| `@joedoe6179`     | Team Lead / Full Stack        |
-| `@ouroboroz333`   | Backend / AI / Infrastructure |
-| `@_kindalikedeus` | Architecture / Scaling        |
-| `@happier_helmut` | Documentation / Backend       |
+All LLM calls are auto-instrumented via OpenInference + Phoenix OTEL.
 
 ---
 
-## 📄 License
+## Git Workflow
+
+- **`main`** -- stable branch
+- **`develop`** -- feature integration
+- **`feature/<name>`** -- one branch per task, created from `develop`
+
+---
+
+## Team
+
+| Handle | Role |
+|--------|------|
+| `@joedoe6179` | Team Lead / Full Stack |
+| `@ouroboroz333` | Backend / AI / Infrastructure |
+| `@_kindalikedeus` | Architecture / Scaling |
+| `@happier_helmut` | Documentation / Backend |
+
+---
+
+## Documentation
+
+- [AGENTS_USE.md](AGENTS_USE.md) -- Agent implementation documentation (9-section hackathon template)
+- [SCALING.md](SCALING.md) -- Scalability analysis and production roadmap
+- [QUICKGUIDE.md](QUICKGUIDE.md) -- Quick start for evaluators
+- [FLOW.md](FLOW.md) -- Detailed system flow and integration points
+- [CHECKLIST.md](CHECKLIST.md) -- Implementation status tracker
+
+---
+
+## License
 
 [MIT](./LICENSE)
