@@ -16,7 +16,8 @@ from __future__ import annotations
 
 import logging
 import os
-from enum import Enum
+from enum import StrEnum
+
 from langchain_core.language_models.chat_models import BaseChatModel
 from pydantic import SecretStr
 
@@ -27,7 +28,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 
-class LLMProvider(str, Enum):
+class LLMProvider(StrEnum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GOOGLE = "google"
@@ -40,23 +41,23 @@ class LLMProvider(str, Enum):
 # ---------------------------------------------------------------------------
 
 
-class OpenAIModel(str, Enum):
+class OpenAIModel(StrEnum):
     GPT_4O_MINI = "gpt-4o-mini"
 
 
-class AnthropicModel(str, Enum):
+class AnthropicModel(StrEnum):
     CLAUDE_3_5_HAIKU = "claude-3-5-haiku-20241022"
 
 
-class GoogleModel(str, Enum):
+class GoogleModel(StrEnum):
     GEMINI_2_FLASH = "gemini-2.0-flash"
 
 
-class OpenRouterModel(str, Enum):
+class OpenRouterModel(StrEnum):
     GPT_4O_MINI = "openai/gpt-4o-mini"
 
 
-class AIGatewayModel(str, Enum):
+class AIGatewayModel(StrEnum):
     GEMINI_2_5_FLASH_LITE = "google/gemini-2.5-flash-lite"
 
 
@@ -65,7 +66,7 @@ class AIGatewayModel(str, Enum):
 # ---------------------------------------------------------------------------
 
 
-class LLMTask(str, Enum):
+class LLMTask(StrEnum):
     TRIAGE = "triage"
     SUMMARIZE = "summarize"
     CLASSIFY = "classify"
@@ -85,7 +86,7 @@ _DEFAULT_MODEL: dict[LLMProvider, str] = {
     LLMProvider.AIGATEWAY: AIGatewayModel.GEMINI_2_5_FLASH_LITE.value,
 }
 
-_MODEL_ENUM_BY_PROVIDER: dict[LLMProvider, type[Enum]] = {
+_MODEL_ENUM_BY_PROVIDER: dict[LLMProvider, type[StrEnum]] = {
     LLMProvider.OPENAI: OpenAIModel,
     LLMProvider.ANTHROPIC: AnthropicModel,
     LLMProvider.GOOGLE: GoogleModel,
@@ -94,7 +95,8 @@ _MODEL_ENUM_BY_PROVIDER: dict[LLMProvider, type[Enum]] = {
 }
 
 _ALLOWED_MODEL_IDS: dict[LLMProvider, frozenset[str]] = {
-    p: frozenset(m.value for m in enum_cls) for p, enum_cls in _MODEL_ENUM_BY_PROVIDER.items()
+    p: frozenset(m.value for m in enum_cls)
+    for p, enum_cls in _MODEL_ENUM_BY_PROVIDER.items()
 }
 
 
@@ -106,9 +108,7 @@ def _parse_provider(raw: str | None) -> LLMProvider:
         return LLMProvider(key)
     except ValueError as e:
         valid = ", ".join(p.value for p in LLMProvider)
-        raise ValueError(
-            f"Unknown LLM_PROVIDER {raw!r}. Valid options: {valid}"
-        ) from e
+        raise ValueError(f"Unknown LLM_PROVIDER {raw!r}. Valid options: {valid}") from e
 
 
 def _resolve_model(provider: LLMProvider, env_model: str | None) -> str:
@@ -119,8 +119,7 @@ def _resolve_model(provider: LLMProvider, env_model: str | None) -> str:
     if candidate in _ALLOWED_MODEL_IDS[provider]:
         return candidate
     logger.warning(
-        "LLM_MODEL %r is not allowed for provider %s; using default %r. "
-        "Allowed: %s",
+        "LLM_MODEL %r is not allowed for provider %s; using default %r. Allowed: %s",
         candidate,
         provider.value,
         default,
@@ -166,9 +165,7 @@ def get_llm(task: LLMTask = LLMTask.GENERAL) -> BaseChatModel:
         api_key = _require_key("GOOGLE_API_KEY", provider)
         from langchain_google_genai import ChatGoogleGenerativeAI
 
-        return ChatGoogleGenerativeAI(
-            model=model, google_api_key=SecretStr(api_key)
-        )
+        return ChatGoogleGenerativeAI(model=model, google_api_key=SecretStr(api_key))
 
     if provider == LLMProvider.OPENROUTER:
         api_key = _require_key("OPENROUTER_API_KEY", provider)
