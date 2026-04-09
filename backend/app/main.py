@@ -46,6 +46,6 @@ async def service_error_handler(_: Request, exc: ServiceError) -> JSONResponse:
 app.include_router(health.router)
 app.include_router(incidents.router)
 
-# Register triage integration hooks
-register_hook(peppermint_hook)
-register_hook(notification_hook)
+# Disable external integration hooks temporarily while Peppermint and notification services are not available.
+# register_hook(peppermint_hook)
+# register_hook(notification_hook)

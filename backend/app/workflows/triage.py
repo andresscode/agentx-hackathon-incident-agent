@@ -5,10 +5,11 @@ from typing import Any, TypedDict, cast
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
 
-from ..llm_provider import LLMTask, get_llm
+from ..llm_provider import get_image_llm, get_text_llm
 from ..prompts import (
     CLASSIFY_SYSTEM_PROMPT,
     CODEBASE_SEARCH_SYSTEM_PROMPT,
+    IMAGE_ANALYSIS_SYSTEM_PROMPT,
     TRIAGE_SUMMARY_SYSTEM_PROMPT,
 )
 from ..schemas.triage import FileSelection, IncidentClassification
@@ -33,6 +34,7 @@ class TriageState(TypedDict):
     image_data: bytes | None
     image_filename: str | None
     # Populated by workflow nodes
+    image_analysis: str | None
     category: str | None
     priority: str | None
     severity_score: int | None
@@ -57,16 +59,63 @@ def _build_image_content(image_data: bytes, image_filename: str) -> dict[str, An
 # ─── Workflow Nodes ───────────────────────────────────────────────────────────
 
 
+async def analyze_image_node(state: TriageState) -> dict[str, Any]:
+    """Extract structured visual context from an attached screenshot."""
+    image_data = state.get("image_data")
+    image_filename = state.get("image_filename")
+
+    if not image_data or not image_filename:
+        return {"image_analysis": None}
+
+    logger.info(
+        "Triage[analyze_image]: analyzing screenshot for incident %s",
+        state["incident_id"],
+    )
+
+    llm = get_image_llm()
+    content: list[str | dict[Any, Any]] = [
+        {
+            "type": "text",
+            "text": "Analyze this screenshot from an e-commerce platform incident.",
+        },
+        _build_image_content(image_data, image_filename),
+    ]
+
+    result = await llm.ainvoke(
+        [
+            SystemMessage(content=IMAGE_ANALYSIS_SYSTEM_PROMPT),
+            HumanMessage(content=content),
+        ]
+    )
+
+    analysis = (
+        result.content if isinstance(result.content, str) else str(result.content)
+    )
+
+    logger.info(
+        "Triage[analyze_image]: completed for incident %s (%d chars)",
+        state["incident_id"],
+        len(analysis),
+    )
+    return {"image_analysis": analysis}
+
+
 async def classify_node(state: TriageState) -> dict[str, Any]:
     """Classify the incident: category, priority, severity, keywords, team."""
     logger.info("Triage[classify]: starting for incident %s", state["incident_id"])
 
-    llm = get_llm(LLMTask.CLASSIFY)
+    # Use professional LLM for classification (Agent Step 2)
+    llm = get_image_llm()
     structured_llm = llm.with_structured_output(IncidentClassification)
 
-    content: list[str | dict[Any, Any]] = [
-        {"type": "text", "text": state["description"]}
-    ]
+    description = state["description"]
+    image_analysis = state.get("image_analysis")
+    if image_analysis:
+        description = (
+            f"{description}\n\n## Visual Analysis\n{image_analysis}"
+        )
+
+    content: list[str | dict[Any, Any]] = [{"type": "text", "text": description}]
 
     image_data = state.get("image_data")
     image_filename = state.get("image_filename")
@@ -131,7 +180,7 @@ async def search_codebase_node(state: TriageState) -> dict[str, Any]:
             f"Full codebase manifest:\n{manifest}"
         )
 
-        llm = get_llm(LLMTask.TRIAGE)
+        llm = get_image_llm()
         structured_llm = llm.with_structured_output(FileSelection)
 
         raw = await structured_llm.ainvoke(
@@ -168,18 +217,27 @@ async def generate_summary_node(state: TriageState) -> dict[str, Any]:
         "Triage[generate_summary]: generating for incident %s", state["incident_id"]
     )
 
-    llm = get_llm(LLMTask.SUMMARIZE)
+    # Use professional LLM for summary generation (Agent Step 3)
+    llm = get_image_llm()
 
     code_context = ""
     for f in state.get("relevant_files") or []:
         snippet = f.get("snippet", "")[:2000]
         code_context += f"\n### {f['path']}\n```\n{snippet}\n```\n"
 
+    image_analysis = state.get("image_analysis")
+    visual_section = (
+        f"## Visual Analysis (from screenshot)\n{image_analysis}\n\n"
+        if image_analysis
+        else ""
+    )
+
     prompt = (
         f"## Incident Report\n"
         f"**Reporter:** {state.get('reporter_name', 'Unknown')} "
         f"({state.get('reporter_email', '')})\n"
         f"**Description:** {state['description']}\n\n"
+        f"{visual_section}"
         f"## Classification\n"
         f"- **Category:** {state.get('category')}\n"
         f"- **Priority:** {state.get('priority')}\n"
@@ -243,12 +301,14 @@ def build_triage_graph() -> Any:
     """Build and compile the triage LangGraph workflow."""
     workflow = StateGraph(TriageState)
 
+    workflow.add_node("analyze_image", analyze_image_node)
     workflow.add_node("classify", classify_node)
     workflow.add_node("search_codebase", search_codebase_node)
     workflow.add_node("generate_summary", generate_summary_node)
     workflow.add_node("run_hooks", run_hooks_node)
 
-    workflow.add_edge(START, "classify")
+    workflow.add_edge(START, "analyze_image")
+    workflow.add_edge("analyze_image", "classify")
     workflow.add_edge("classify", "search_codebase")
     workflow.add_edge("search_codebase", "generate_summary")
     workflow.add_edge("generate_summary", "run_hooks")

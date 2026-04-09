@@ -3,9 +3,12 @@ LLM provider abstraction for multi-provider support.
 
 Environment:
   LLM_PROVIDER — one of LLMProvider values (default: openrouter)
-  LLM_MODEL    — optional; must be a known model id for the active provider
-                 (see *Model enums below). If unset or invalid, the default
-                 for that provider is used.
+  LLM_MODEL    — optional; fast model for prompt injection and initial image analysis
+                 (see *Model enums below). If unset or invalid, the default fast
+                 model for that provider is used.
+  LLM_PRO_MODEL — optional; professional model for complex tasks (classification,
+                  code search, summarization). If unset or invalid, the default
+                  professional model for that provider is used.
 
 API keys (only the one matching LLM_PROVIDER is required):
   OPENAI_API_KEY, ANTHROPIC_API_KEY, GOOGLE_API_KEY,
@@ -43,6 +46,7 @@ class LLMProvider(StrEnum):
 
 class OpenAIModel(StrEnum):
     GPT_4O_MINI = "gpt-4o-mini"
+    GPT_4O = "gpt-4o"  # For image analysis
 
 
 class AnthropicModel(StrEnum):
@@ -51,27 +55,16 @@ class AnthropicModel(StrEnum):
 
 class GoogleModel(StrEnum):
     GEMINI_2_FLASH = "gemini-2.0-flash"
+    GEMINI_1_5_PRO = "gemini-1.5-pro"  # For image analysis
 
 
 class OpenRouterModel(StrEnum):
     GPT_4O_MINI = "openai/gpt-4o-mini"
+    GPT_4O = "openai/gpt-4o"  # For image analysis
 
 
 class AIGatewayModel(StrEnum):
     GEMINI_2_5_FLASH_LITE = "google/gemini-2.5-flash-lite"
-
-
-# ---------------------------------------------------------------------------
-# Task — use this for autocomplete at call sites: get_llm(LLMTask.TRIAGE)
-# ---------------------------------------------------------------------------
-
-
-class LLMTask(StrEnum):
-    TRIAGE = "triage"
-    SUMMARIZE = "summarize"
-    CLASSIFY = "classify"
-    NOTIFY = "notify"
-    GENERAL = "general"
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +76,14 @@ _DEFAULT_MODEL: dict[LLMProvider, str] = {
     LLMProvider.ANTHROPIC: AnthropicModel.CLAUDE_3_5_HAIKU.value,
     LLMProvider.GOOGLE: GoogleModel.GEMINI_2_FLASH.value,
     LLMProvider.OPENROUTER: OpenRouterModel.GPT_4O_MINI.value,
+    LLMProvider.AIGATEWAY: AIGatewayModel.GEMINI_2_5_FLASH_LITE.value,
+}
+
+_DEFAULT_PRO_MODEL: dict[LLMProvider, str] = {
+    LLMProvider.OPENAI: OpenAIModel.GPT_4O.value,  # More capable for complex tasks
+    LLMProvider.ANTHROPIC: AnthropicModel.CLAUDE_3_5_HAIKU.value,
+    LLMProvider.GOOGLE: GoogleModel.GEMINI_1_5_PRO.value,  # More capable for complex reasoning
+    LLMProvider.OPENROUTER: OpenRouterModel.GPT_4O.value,  # More capable model
     LLMProvider.AIGATEWAY: AIGatewayModel.GEMINI_2_5_FLASH_LITE.value,
 }
 
@@ -133,22 +134,88 @@ def _resolve_model(provider: LLMProvider, env_model: str | None) -> str:
 # ---------------------------------------------------------------------------
 
 
-def get_llm(task: LLMTask = LLMTask.GENERAL) -> BaseChatModel:
-    """
-    Build a LangChain chat model from ``LLM_PROVIDER`` / ``LLM_MODEL``.
 
-    ``task`` is for logging and future per-task routing (model selection).
-    Use :class:`LLMTask` so editors autocomplete valid values.
+def get_text_llm() -> BaseChatModel:
+    """
+    Fast LLM for text-only tasks: prompt injection check (Agent Step 1).
+
+    Uses LLM_MODEL config (defaults to fast models like gpt-4o-mini).
+    """
+    provider = _parse_provider(os.getenv("LLM_PROVIDER"))
+    model = _resolve_model(provider, os.getenv("LLM_MODEL"))
+    logger.debug("get_text_llm provider=%s model=%s", provider.value, model)
+    return _build_llm(provider, model)
+
+
+def get_fast_llm() -> BaseChatModel:
+    """
+    Fast LLM for prompt injection and initial image analysis (Agent Step 1).
+    
+    Uses LLM_MODEL config (defaults to fast models like gpt-4o-mini).
+    Can handle images for initial screenshot analysis.
     """
     provider = _parse_provider(os.getenv("LLM_PROVIDER"))
     model = _resolve_model(provider, os.getenv("LLM_MODEL"))
     logger.debug(
-        "get_llm provider=%s model=%s task=%s",
+        "get_fast_llm provider=%s model=%s",
         provider.value,
         model,
-        task.value,
     )
 
+    return _build_llm(provider, model)
+
+
+def get_pro_llm() -> BaseChatModel:
+    """
+    Professional LLM for classification, code search, and summarization (Agent Steps 2-3).
+    
+    Uses LLM_PRO_MODEL config (defaults to more capable models).
+    Can handle complex reasoning and image analysis for detailed triage.
+    """
+    provider = _parse_provider(os.getenv("LLM_PROVIDER"))
+    model = _resolve_pro_model(provider, os.getenv("LLM_PRO_MODEL"))
+    logger.debug(
+        "get_pro_llm provider=%s model=%s",
+        provider.value,
+        model,
+    )
+
+    return _build_llm(provider, model)
+
+
+def get_image_llm() -> BaseChatModel:
+    """
+    Vision-capable LLM for image analysis, classification, and summarization (Agent Steps 1-3).
+
+    Uses LLM_PRO_MODEL config (defaults to more capable/vision models).
+    """
+    provider = _parse_provider(os.getenv("LLM_PROVIDER"))
+    model = _resolve_pro_model(provider, os.getenv("LLM_PRO_MODEL"))
+    logger.debug("get_image_llm provider=%s model=%s", provider.value, model)
+    return _build_llm(provider, model)
+
+
+def _resolve_pro_model(provider: LLMProvider, env_model: str | None) -> str:
+    """Resolve pro model for complex tasks (defaults to more capable models)."""
+    default = _DEFAULT_PRO_MODEL[provider]
+    if env_model is None or not env_model.strip():
+        return default
+    candidate = env_model.strip()
+    if candidate in _ALLOWED_MODEL_IDS[provider]:
+        return candidate
+    logger.warning(
+        "LLM_PRO_MODEL %r is not allowed for provider %s; using default %r. Allowed: %s",
+        candidate,
+        provider.value,
+        default,
+        sorted(_ALLOWED_MODEL_IDS[provider]),
+    )
+    return default
+
+
+
+def _build_llm(provider: LLMProvider, model: str) -> BaseChatModel:
+    """Internal helper to build the actual LLM instance."""
     if provider == LLMProvider.OPENAI:
         api_key = _require_key("OPENAI_API_KEY", provider)
         from langchain_openai import ChatOpenAI

@@ -5,7 +5,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, EmailStr, Field
 
 from ..exceptions import ServiceError
-from ..llm_provider import LLMTask, get_llm
+from ..llm_provider import get_text_llm
 from ..models import Incident
 from ..prompts import PROMPT_INJECTION_SYSTEM_PROMPT
 from ..services.incidents import (
@@ -66,7 +66,7 @@ async def create_incident(
     )
 
     # --- Prompt injection check (structured output) ---
-    llm = get_llm(LLMTask.CLASSIFY)
+    llm = get_text_llm()
     structured_llm = llm.with_structured_output(PromptInjectionVerdict)
     raw_verdict = await structured_llm.ainvoke(
         [

@@ -94,6 +94,22 @@ prioritize files in the corresponding module
 - Explain briefly why each file is relevant\
 """
 
+IMAGE_ANALYSIS_SYSTEM_PROMPT = """\
+You are an image analysis assistant for incident reports on a Reaction Commerce \
+e-commerce platform. Analyze the provided screenshot and extract structured \
+information relevant to incident triage.
+
+Look for:
+- Error messages, status codes, or exception stack traces visible in the UI
+- Browser console errors or network failures shown in DevTools
+- UI elements that appear broken, missing, or in an unexpected state
+- Indicators of performance issues (loading spinners, timeouts, empty states)
+- Any text that identifies the affected feature (checkout, cart, search, auth, etc.)
+
+Provide a concise, structured description: what you see, what appears broken, \
+and any error codes or messages that could help with classification.\
+"""
+
 TRIAGE_SUMMARY_SYSTEM_PROMPT = """\
 You are a senior SRE engineer writing an incident triage summary for a \
 Reaction Commerce e-commerce platform.
