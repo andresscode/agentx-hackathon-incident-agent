@@ -50,9 +50,10 @@ class IncidentNotification:
 async def notify_incident_created(data: IncidentNotification) -> dict[str, str | bool]:
     slack_url = os.environ.get("SLACK_WEBHOOK_URL", "")
     raw_email_url = os.environ.get("EMAIL_SMTP_URL", "")
+    discord_url = os.environ.get("DISCORD_WEBHOOK_URL", "")
     email_url = build_apprise_email_url(raw_email_url)
 
-    urls = [u for u in [slack_url, email_url] if u]
+    urls = [u for u in [slack_url, email_url, discord_url] if u]
 
     if not urls:
         logger.warning("No notification URLs configured, skipping notification")

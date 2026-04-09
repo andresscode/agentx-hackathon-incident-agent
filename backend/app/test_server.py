@@ -190,3 +190,49 @@ async def test_ticket_and_notify(data: IncidentAlert):
             "status": "success" if resp.status_code == 200 else "failed"
         }
     }
+
+
+class DiscordTestNotification(BaseModel):
+    """Test Discord notification payload."""
+    title: str = "🚨 Test Incident Alert"
+    message: str = "This is a test incident notification"
+
+
+@app.post("/test/discord-notify")
+async def test_discord_notify(data: DiscordTestNotification):
+    """Send a test notification to Discord via Apprise.
+    
+    Requires DISCORD_WEBHOOK_URL environment variable to be set.
+    """
+    discord_url = os.getenv("DISCORD_WEBHOOK_URL", "")
+    
+    if not discord_url:
+        return {
+            "success": False,
+            "message": "DISCORD_WEBHOOK_URL not configured",
+            "status_code": 400
+        }
+    
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                f"{APPRISER_API}/notify",
+                json={
+                    "urls": discord_url,
+                    "title": data.title,
+                    "body": data.message,
+                },
+                timeout=30.0,
+            )
+        
+        return {
+            "success": resp.status_code == 200,
+            "message": resp.text if resp.status_code != 200 else "Discord notification sent successfully",
+            "status_code": resp.status_code
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "message": f"Failed to send Discord notification: {str(e)}",
+            "status_code": 500
+        }

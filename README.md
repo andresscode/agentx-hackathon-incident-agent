@@ -33,7 +33,7 @@ Built for the **AgentX Hackathon** — [#AgentXHackathon](https://youtube.com)
     │
     ├──▶ (3) Creates ticket in Jira / Linear / Peppermint
     │
-    ├──▶ (4) Notifies engineering team (Email + Slack)
+    ├──▶ (4) Notifies engineering team (Email + Slack + Discord)
     │
     ▼ (5) Ticket resolved → notifies original reporter
 [Reporter] ◀───────────────────────────────────────────
@@ -68,7 +68,7 @@ Built for the **AgentX Hackathon** — [#AgentXHackathon](https://youtube.com)
 | **Models**          | Multimodal LLM via API (Anthropic / GCP Vertex / OpenRouter) |
 | **Database**        | PostgreSQL + pgvector                                        |
 | **Ticketing**       | Jira / Linear / Peppermint (open source)                     |
-| **Notifications**   | Email + Slack                                                |
+| **Notifications**   | Email + Slack + Discord                                     |
 | **Observability**   | LangFuse / Phoenix (Arize)                                   |
 | **Containers**      | Docker Compose                                               |
 | **E-commerce repo** | _(mid/full complexity open source — see `AGENTS_USE.md`)_    |

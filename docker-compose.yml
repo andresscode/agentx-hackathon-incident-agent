@@ -18,6 +18,7 @@ services:
       - APPRISE_URL=http://apprise:8000
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
       - EMAIL_SMTP_URL=${EMAIL_SMTP_URL:-}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
     depends_on:
       db:
         condition: service_healthy
