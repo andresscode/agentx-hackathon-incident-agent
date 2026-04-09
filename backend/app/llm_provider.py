@@ -116,16 +116,8 @@ def _resolve_model(provider: LLMProvider, env_model: str | None) -> str:
     if env_model is None or not env_model.strip():
         return default
     candidate = env_model.strip()
-    if candidate in _ALLOWED_MODEL_IDS[provider]:
-        return candidate
-    logger.warning(
-        "LLM_MODEL %r is not allowed for provider %s; using default %r. Allowed: %s",
-        candidate,
-        provider.value,
-        default,
-        sorted(_ALLOWED_MODEL_IDS[provider]),
-    )
-    return default
+    # Always accept the model from .env — no hardcoded restrictions
+    return candidate
 
 
 # ---------------------------------------------------------------------------

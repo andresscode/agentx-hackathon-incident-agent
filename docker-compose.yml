@@ -12,12 +12,24 @@ services:
     build: ./backend
     env_file:
       - .env
+    ports:
+      - "8003:8000"
+    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/incident_agent
       - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
+      - APPRISE_URL=http://apprise:8000
+      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
+      - EMAIL_SMTP_URL=${EMAIL_SMTP_URL:-}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - NOTIFY_EMAIL_ON_TRIAGE=${NOTIFY_EMAIL_ON_TRIAGE:-true}
+      - NOTIFY_DISCORD_ON_TRIAGE=${NOTIFY_DISCORD_ON_TRIAGE:-true}
+      - NOTIFY_CC_EMAILS=${NOTIFY_CC_EMAILS:-}
     depends_on:
       db:
         condition: service_healthy
+      apprise:
+        condition: service_started
       phoenix:
         condition: service_started
 
@@ -26,6 +38,20 @@ services:
     ports:
       - "6006:6006"
       - "4317:4317"
+
+  apprise:
+    image: caronc/apprise:v1.3.3
+    ports:
+      - "8001:8000"
+    environment:
+      - APPRISE_CONFIG_DIR=/config
+    volumes:
+      - apprise_config:/config
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   db:
     image: postgres:16-alpine
@@ -86,3 +112,4 @@ services:
 volumes:
   pgdata:
   peppermint-pgdata:
+  apprise_config:
