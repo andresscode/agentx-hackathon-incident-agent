@@ -14,7 +14,7 @@ services:
       - .env
     ports:
       - "8003:8000"
-    command: uv run uvicorn app.test_server:app --host 0.0.0.0 --port 8000
+    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/incident_agent
       - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
@@ -22,6 +22,9 @@ services:
       - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
       - EMAIL_SMTP_URL=${EMAIL_SMTP_URL:-}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - NOTIFY_EMAIL_ON_TRIAGE=${NOTIFY_EMAIL_ON_TRIAGE:-true}
+      - NOTIFY_DISCORD_ON_TRIAGE=${NOTIFY_DISCORD_ON_TRIAGE:-true}
+      - NOTIFY_CC_EMAILS=${NOTIFY_CC_EMAILS:-}
     depends_on:
       db:
         condition: service_healthy

@@ -7,7 +7,7 @@ from fastapi.responses import JSONResponse
 
 from .database import Base, engine
 from .exceptions import ServiceError
-from .routes import health, incidents, notifications, todos
+from .routes import health, incidents, notifications, webhooks
 
 
 @asynccontextmanager
@@ -39,4 +39,4 @@ async def service_error_handler(_: Request, exc: ServiceError) -> JSONResponse:
 app.include_router(health.router)
 app.include_router(incidents.router)
 app.include_router(notifications.router)
-app.include_router(todos.router)
+app.include_router(webhooks.router)
