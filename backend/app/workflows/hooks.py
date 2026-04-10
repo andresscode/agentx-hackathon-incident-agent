@@ -80,6 +80,93 @@ def _build_rich_body(state: dict[str, Any]) -> str:
     )
 
 
+def _build_html_body(state: dict[str, Any]) -> str:
+    """Build a polished HTML email body for end-user notifications."""
+    import html as html_mod
+
+    reporter = state.get("reporter_name", "")
+    description = html_mod.escape(state.get("description", ""))
+    ticket_id = state["incident_id"][:8]
+    greeting = (
+        f"Hi {html_mod.escape(reporter)},"
+        if reporter
+        else "Hi,"
+    )
+
+    return (
+        "<html>"
+        "<body style='margin:0;padding:0;background:#f4f4f5;"
+        "font-family:Arial,Helvetica,sans-serif;'>"
+        "<table width='100%' cellpadding='0' cellspacing='0'"
+        " style='background:#f4f4f5;padding:32px 0;'>"
+        "<tr><td align='center'>"
+        "<table width='600' cellpadding='0' cellspacing='0'"
+        " style='background:#fff;border-radius:8px;"
+        "overflow:hidden;"
+        "box-shadow:0 1px 3px rgba(0,0,0,0.1);'>"
+        # Header
+        "<tr><td style='background:#1e293b;"
+        "padding:24px 32px;'>"
+        "<h1 style='margin:0;color:#fff;font-size:20px;"
+        "font-weight:600;'>We received your report</h1>"
+        "<p style='margin:6px 0 0;color:#94a3b8;"
+        f"font-size:13px;'>Reference: {ticket_id}</p>"
+        "</td></tr>"
+        # Greeting
+        "<tr><td style='padding:28px 32px 12px;'>"
+        "<p style='margin:0;color:#334155;"
+        f"font-size:15px;line-height:1.6;'>{greeting}</p>"
+        "<p style='margin:12px 0 0;color:#334155;"
+        "font-size:15px;line-height:1.6;'>"
+        "Thank you for reaching out. We've received your "
+        "report and our team is already looking into it. "
+        "We'll follow up with you as soon as we have an "
+        "update.</p>"
+        "</td></tr>"
+        # Your Report
+        "<tr><td style='padding:8px 32px 24px;'>"
+        "<h3 style='margin:0 0 8px;color:#1e293b;"
+        "font-size:14px;font-weight:600;'>Your Report</h3>"
+        "<p style='margin:0;color:#475569;font-size:14px;"
+        f"line-height:1.6;white-space:pre-wrap;'>"
+        f"{description}</p>"
+        "</td></tr>"
+        # Footer
+        "<tr><td style='background:#f8fafc;"
+        "border-top:1px solid #e2e8f0;padding:20px 32px;'>"
+        "<p style='margin:0;color:#94a3b8;font-size:12px;"
+        "line-height:1.5;text-align:center;'>"
+        "You're receiving this because you submitted a "
+        "report. If you have questions, reply to this "
+        "email.</p>"
+        "</td></tr>"
+        "</table>"
+        "</td></tr></table>"
+        "</body></html>"
+    )
+
+
+def _extract_triage_summary(triage: str) -> str:
+    """Pull the Summary section from triage markdown."""
+    import re
+
+    if not triage:
+        return "Pending analysis..."
+    match = re.search(
+        r"###?\s*Summary\s*\n(.+?)(?:\n###?|\Z)",
+        triage,
+        re.DOTALL,
+    )
+    if not match:
+        return "Pending analysis..."
+    text = match.group(1).strip()
+    # Strip markdown formatting
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"`(.+?)`", r"\1", text)
+    return text
+
+
 def _build_discord_body(state: dict[str, Any]) -> str:
     """Build a Discord-formatted notification body."""
     return (
@@ -191,21 +278,10 @@ async def integrations_hook(state: dict[str, Any]) -> None:
             recipients.extend(settings.NOTIFY_CC_EMAILS)
             email_url = f"{email_url}&to={','.join(recipients)}"
 
-            sep = "=" * 40
-            email_body = (
-                f"INCIDENT NOTIFICATION\n{sep}\n\n"
-                f"Ticket ID: {ticket_id}\n"
-                f"Title: {title}\n"
-                f"Priority: {state.get('priority', 'unknown').upper()}\n"
-                f"Category: {state.get('category', 'unknown')}\n"
-                f"Severity: {state.get('severity_score', 'N/A')}/10\n"
-                f"Assigned Team: {state.get('assigned_team', 'TBD')}\n"
-                f"Reporter: {state.get('reporter_name', 'Unknown')} "
-                f"({state.get('reporter_email', '')})\n\n"
-                f"Description:\n{state.get('description', '')}\n\n"
-                f"Triage Summary:\n{state.get('triage_summary', 'Pending triage...')}\n\n"
-                f"{sep}\n"
-                f"View ticket in Peppermint: {peppermint_url}"
+            email_body = _build_html_body(state)
+            email_subject = (
+                "We received your report "
+                f"(Ref: {state['incident_id'][:8]})"
             )
 
             try:
@@ -214,9 +290,10 @@ async def integrations_hook(state: dict[str, Any]) -> None:
                         f"{settings.APPRISE_URL}/notify",
                         json={
                             "urls": email_url,
-                            "title": f"[{state.get('priority', 'unknown').upper()}] Incident {state['incident_id'][:8]}",
+                            "title": email_subject,
                             "body": email_body,
                             "type": "info",
+                            "format": "html",
                         },
                     )
                     if resp.status_code != 200:
@@ -231,25 +308,45 @@ async def integrations_hook(state: dict[str, Any]) -> None:
     # ── 3. Send Discord ──
     if settings.NOTIFY_DISCORD_ON_TRIAGE:
         if settings.DISCORD_WEBHOOK_URL:
+            priority = state.get(
+                'priority', 'unknown'
+            ).upper()
+            category = state.get('category', 'unknown')
+            severity = state.get('severity_score', 'N/A')
+            team = state.get('assigned_team', 'TBD')
+            iid = state['incident_id'][:8]
+            reporter = state.get(
+                'reporter_name', 'Unknown'
+            )
+            desc = state.get('description', '')
+            summary = _extract_triage_summary(
+                state.get('triage_summary', '')
+            )
+
             discord_body = (
-                f"**[{state.get('priority', 'unknown').upper()}] "
-                f"[{state.get('category', 'unknown')}]** "
-                f"Incident `{state['incident_id'][:8]}`\n\n"
-                f"**Reporter:** {state.get('reporter_name', 'Unknown')}\n"
-                f"**Severity:** {state.get('severity_score', 'N/A')}/10\n"
-                f"**Team:** {state.get('assigned_team', 'TBD')}\n\n"
-                f"**Description:**\n{state.get('description', '')}\n\n"
-                f"**Triage:**\n{state.get('triage_summary', 'Pending...')[:500]}\n\n"
-                f"🔗 [View Ticket in Peppermint]({peppermint_url})"
+                f"## \U0001f6a8 Incident `{iid}`\n\n"
+                f"> **{desc}**\n\n"
+                f"\U0001f4cb **Details**\n"
+                f"- **Priority:** {priority}\n"
+                f"- **Category:** {category}\n"
+                f"- **Severity:** {severity}/10\n"
+                f"- **Team:** {team}\n"
+                f"- **Reporter:** {reporter}\n\n"
+                f"\U0001f50d **Analysis**\n"
+                f"{summary}\n\n"
+                f"\U0001f517 [View in Peppermint]"
+                f"({peppermint_url})"
             )
 
             try:
-                async with httpx.AsyncClient(timeout=30.0) as client:
+                async with httpx.AsyncClient(
+                    timeout=30.0
+                ) as client:
                     resp = await client.post(
                         f"{settings.APPRISE_URL}/notify",
                         json={
                             "urls": settings.DISCORD_WEBHOOK_URL,
-                            "title": f"[{state.get('priority', 'unknown').upper()}] Incident {state['incident_id'][:8]}",
+                            "title": "",
                             "body": discord_body,
                             "type": "info",
                         },
