@@ -11,7 +11,6 @@ from .database import Base, engine
 from .exceptions import ServiceError
 from .routes import health, incidents, notifications, webhooks
 from .seed import seed
-from .workflows.hooks import notification_hook, peppermint_hook, register_hook
 
 load_dotenv()
 
@@ -51,7 +50,3 @@ app.include_router(health.router)
 app.include_router(incidents.router)
 app.include_router(notifications.router)
 app.include_router(webhooks.router)
-
-# Register triage integration hooks
-register_hook(peppermint_hook)
-register_hook(notification_hook)
