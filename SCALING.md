@@ -26,7 +26,7 @@ The triage pipeline makes 3 LLM calls in sequence: classify -> search -> summari
 
 **Mitigation:**
 - **Parallelize:** Classify and search nodes could run concurrently -- search only needs keywords (available after classify). LangGraph supports parallel edges.
-- **Faster models:** Use lighter models for classification (Gemini Flash Lite) while keeping stronger models for summary generation.
+- **Mixed-model routing:** The codebase already defines a `LLMTask` enum per pipeline node. In production, lightweight models (Gemini 3.1 Flash Lite, GPT-5.4 Nano) handle classification and search, while a more capable model (e.g., Claude Sonnet 4.6, GPT-5.4) generates the summary — trading a small cost increase for higher-quality root cause analysis on complex incidents.
 - **Cache classifications:** Incidents with similar descriptions could reuse cached results.
 
 ### 2. Background Task Processing
@@ -88,7 +88,7 @@ The Reaction Commerce index is loaded in memory per worker (~50MB). Each worker 
 | PostgreSQL | Storage growth from image blobs | Move to object storage |
 | Infrastructure | Compute for workers | Auto-scale on queue depth, scale to zero off-hours |
 
-At current usage (GPT-4o-mini via OpenRouter), estimated cost per triage: ~$0.002-0.005. At 1000 incidents/day, LLM costs: ~$2-5/day.
+At current usage (Gemini 3.1 Flash Lite via OpenRouter), estimated cost per triage: ~$0.002-0.01. At 1000 incidents/day, LLM costs: ~$2-10/day. A mixed-model strategy (lightweight models for classification/search, stronger model for summaries) would increase per-incident cost slightly but improve triage quality for high-severity incidents.
 
 ## Monitoring for Scale
 

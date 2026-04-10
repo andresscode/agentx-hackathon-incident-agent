@@ -42,23 +42,23 @@ class LLMProvider(StrEnum):
 
 
 class OpenAIModel(StrEnum):
-    GPT_4O_MINI = "gpt-4o-mini"
+    GPT_5_4_NANO = "gpt-5.4-nano"
 
 
 class AnthropicModel(StrEnum):
-    CLAUDE_3_5_HAIKU = "claude-3-5-haiku-20241022"
+    CLAUDE_HAIKU_4_5 = "claude-haiku-4-5-20251001"
 
 
 class GoogleModel(StrEnum):
-    GEMINI_2_FLASH = "gemini-2.0-flash"
+    GEMINI_3_1_FLASH_LITE = "gemini-3.1-flash-lite-preview"
 
 
 class OpenRouterModel(StrEnum):
-    GPT_4O_MINI = "openai/gpt-4o-mini"
+    GEMINI_3_1_FLASH_LITE = "google/gemini-3.1-flash-lite-preview"
 
 
 class AIGatewayModel(StrEnum):
-    GEMINI_2_5_FLASH_LITE = "google/gemini-2.5-flash-lite"
+    GEMINI_3_1_FLASH_LITE = "google/gemini-3.1-flash-lite-preview"
 
 
 # ---------------------------------------------------------------------------
@@ -79,11 +79,11 @@ class LLMTask(StrEnum):
 # ---------------------------------------------------------------------------
 
 _DEFAULT_MODEL: dict[LLMProvider, str] = {
-    LLMProvider.OPENAI: OpenAIModel.GPT_4O_MINI.value,
-    LLMProvider.ANTHROPIC: AnthropicModel.CLAUDE_3_5_HAIKU.value,
-    LLMProvider.GOOGLE: GoogleModel.GEMINI_2_FLASH.value,
-    LLMProvider.OPENROUTER: OpenRouterModel.GPT_4O_MINI.value,
-    LLMProvider.AIGATEWAY: AIGatewayModel.GEMINI_2_5_FLASH_LITE.value,
+    LLMProvider.OPENAI: OpenAIModel.GPT_5_4_NANO.value,
+    LLMProvider.ANTHROPIC: AnthropicModel.CLAUDE_HAIKU_4_5.value,
+    LLMProvider.GOOGLE: GoogleModel.GEMINI_3_1_FLASH_LITE.value,
+    LLMProvider.OPENROUTER: OpenRouterModel.GEMINI_3_1_FLASH_LITE.value,
+    LLMProvider.AIGATEWAY: AIGatewayModel.GEMINI_3_1_FLASH_LITE.value,
 }
 
 _MODEL_ENUM_BY_PROVIDER: dict[LLMProvider, type[StrEnum]] = {
