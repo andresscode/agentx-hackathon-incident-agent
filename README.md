@@ -13,17 +13,17 @@ Built for the **AgentX Hackathon**
     |
     v  (1) Submits incident report (text + optional screenshot)
 +---------------------------------------------------+
-|              Frontend - Next.js                    |
+|              Frontend - Next.js                   |
 |  Client-side validation (Zod + vard)              |
 +---------------------------------------------------+
     |
     v  (2) Automated triage (background, 10-20 seconds)
 +---------------------------------------------------+
-|         SRE Triage Agent - FastAPI + LangGraph     |
+|         SRE Triage Agent - FastAPI + LangGraph    |
 |  . Prompt injection check (LLM security gate)     |
 |  . Classifies: category, priority, severity, team |
-|  . Searches Reaction Commerce codebase             |
-|  . Generates technical triage report               |
+|  . Searches Reaction Commerce codebase            |
+|  . Generates technical triage report              |
 +---------------------------------------------------+
     |
     |---> (3) Creates ticket in Peppermint
@@ -40,9 +40,9 @@ Built for the **AgentX Hackathon**
 
 ```
 +-----------------+     +---------------------------+     +---------------+
-|   Frontend      |---->|        Backend             |---->|  PostgreSQL   |
-|  Next.js 15     |     |  FastAPI + LangGraph       |     +---------------+
-|  React 19       |     |  LangChain                 |
+|   Frontend      |---->|        Backend            |---->|  PostgreSQL   |
+|  Next.js 15     |     |  FastAPI + LangGraph      |     +---------------+
+|  React 19       |     |  LangChain                |
 |  Tailwind CSS   |     +---------------------------+
 |  shadcn/ui      |              |
 +-----------------+   +----------+-----------+
@@ -52,7 +52,7 @@ Built for the **AgentX Hackathon**
                | (tickets)| | (Discord/| |  (OTEL    |
                |  :3001   | |  Email)  | |  traces)  |
                +----------+ +----------+ |   :6006   |
-                                          +-----------+
+                                         +-----------+
 ```
 
 ### Tech Stack
@@ -186,10 +186,7 @@ pnpm dev                   # start Next.js dev server (localhost:3000)
 ├── docker-compose.yml        # Full-stack deployment
 ├── AGENTS_USE.md             # Agent documentation (hackathon template)
 ├── SCALING.md                # Scalability analysis
-├── QUICKGUIDE.md             # Evaluator quick guide
-├── FLOW.md                   # Detailed system flow
-├── CHECKLIST.md              # Implementation status
-└── TODO.md                   # Remaining integration work
+└── QUICKGUIDE.md             # Evaluator quick guide
 ```
 
 ---
@@ -242,8 +239,6 @@ All LLM calls are auto-instrumented via OpenInference + Phoenix OTEL.
 - [AGENTS_USE.md](AGENTS_USE.md) -- Agent implementation documentation (9-section hackathon template)
 - [SCALING.md](SCALING.md) -- Scalability analysis and production roadmap
 - [QUICKGUIDE.md](QUICKGUIDE.md) -- Quick start for evaluators
-- [FLOW.md](FLOW.md) -- Detailed system flow and integration points
-- [CHECKLIST.md](CHECKLIST.md) -- Implementation status tracker
 
 ---
 

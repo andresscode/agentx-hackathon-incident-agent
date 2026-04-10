@@ -154,4 +154,3 @@ No incident is created, no triage runs, no sensitive data is exposed.
 
 - [AGENTS_USE.md](AGENTS_USE.md) -- Full agent documentation (9-section hackathon template)
 - [SCALING.md](SCALING.md) -- Scalability analysis
-- [FLOW.md](FLOW.md) -- Detailed system flow diagram
