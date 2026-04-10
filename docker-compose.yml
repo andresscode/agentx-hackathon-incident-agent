@@ -13,13 +13,12 @@ services:
     env_file:
       - .env
     ports:
-      - "8003:8000"
+      - "8000:8000"
     command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
     environment:
       - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/incident_agent
       - PHOENIX_COLLECTOR_ENDPOINT=http://phoenix:6006
       - APPRISE_URL=http://apprise:8000
-      - SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL:-}
       - EMAIL_SMTP_URL=${EMAIL_SMTP_URL:-}
       - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
       - NOTIFY_EMAIL_ON_TRIAGE=${NOTIFY_EMAIL_ON_TRIAGE:-true}
@@ -37,12 +36,9 @@ services:
     image: arizephoenix/phoenix:latest
     ports:
       - "6006:6006"
-      - "4317:4317"
 
   apprise:
     image: caronc/apprise:v1.3.3
-    ports:
-      - "8001:8000"
     environment:
       - APPRISE_CONFIG_DIR=/config
     volumes:
@@ -88,7 +84,6 @@ services:
     image: pepperlabs/peppermint:latest
     ports:
       - "3001:3000"
-      - "5003:5003"
     restart: always
     depends_on:
       peppermint-db:
@@ -101,8 +96,6 @@ services:
 
   pgadmin:
     image: dpage/pgadmin4:latest
-    ports:
-      - "5050:80"
     environment:
       PGADMIN_DEFAULT_EMAIL: admin@admin.com
       PGADMIN_DEFAULT_PASSWORD: admin

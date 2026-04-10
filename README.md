@@ -49,8 +49,8 @@ Built for the **AgentX Hackathon**
                       v          v           v
                +----------+ +----------+ +-----------+
                |Peppermint| | Apprise  | |  Phoenix  |
-               | (tickets)| |(Discord/   | |  (OTEL    |
-               |  :3001   | | Email)   | |  traces)  |
+               | (tickets)| | (Discord/| |  (OTEL    |
+               |  :3001   | |  Email)  | |  traces)  |
                +----------+ +----------+ |   :6006   |
                                           +-----------+
 ```
@@ -107,21 +107,10 @@ First build takes ~2 minutes (clones and indexes the Reaction Commerce codebase)
 | Service | URL | Credentials |
 |---------|-----|------------|
 | **Incident Form** | http://localhost:3000 | -- |
-| **Backend API** | http://localhost:8000 | -- |
-| **API Docs** | http://localhost:8000/docs | -- |
 | **Phoenix Traces** | http://localhost:6006 | -- |
 | **Peppermint Tickets** | http://localhost:3001 | `admin@admin.com` / `1234` |
-| **pgAdmin** | http://localhost:5050 | `admin@admin.com` / `admin` |
 
 > See [`QUICKGUIDE.md`](./QUICKGUIDE.md) for a step-by-step evaluator walkthrough.
-
-### pgAdmin Setup
-
-1. Open http://localhost:5050 and log in
-2. Right-click **Servers** > **Register** > **Server**
-3. **General** tab: Name = `incident_agent`
-4. **Connection** tab: Host = `db`, Port = `5432`, Username = `postgres`, Password = `postgres`
-5. Click **Save**
 
 ---
 
