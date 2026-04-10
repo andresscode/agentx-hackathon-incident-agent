@@ -30,6 +30,7 @@ First build takes ~2 minutes (clones and indexes the Reaction Commerce codebase)
 | Service | URL | Credentials |
 |---------|-----|------------|
 | E-commerce Store | http://localhost:3000 | -- |
+| Custom Metrics | http://localhost:3000/metrics | -- |
 | Phoenix Traces | http://localhost:6006 | -- |
 | Peppermint Tickets | http://localhost:3001 | `admin@admin.com` / `1234` |
 
@@ -39,30 +40,33 @@ First build takes ~2 minutes (clones and indexes the Reaction Commerce codebase)
 
 1. In your Discord server, go to **Server Settings → Integrations → Webhooks**
 2. Create a new webhook and copy the URL
-3. Add it to your `.env`:
+3. Stop the services (`Ctrl+C`), add the URL to your `.env`:
    ```env
    DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your_webhook_id/your_webhook_token
    ```
-4. Restart the backend: `docker compose restart backend`
+4. Start again: `docker compose up`
 
 ### Configure Email Notifications (optional)
 
-1. Add your SMTP credentials to `.env`:
+1. Stop the services (`Ctrl+C`), add your SMTP credentials to `.env`:
    ```env
    EMAIL_SMTP_URL=smtp://username:password@smtp.gmail.com:587
    ```
    For Gmail, use an [App Password](https://myaccount.google.com/apppasswords) as the password.
-2. Restart the backend: `docker compose restart backend`
+2. Start again: `docker compose up`
+
+> **Tip:** If you prefer to keep services running, open a second terminal and run `docker compose restart backend` instead.
 
 ### Configure the Peppermint Webhook (required for resolved → notify reporter)
 
 This enables the final step of the E2E flow: when an engineer marks a ticket as completed in Peppermint, our backend sends a resolution email to the original reporter.
 
 1. Open http://localhost:3001 and log in with `admin@admin.com` / `1234`
-2. Go to **Settings** (gear icon in the sidebar)
+2. Go to **Admin** (gear icon in the sidebar)
 3. Find **Webhooks** section
-4. Add a new webhook with the URL: `http://backend:8000/webhooks/peppermint`
-5. Save
+4. Add a new webhook with the Payload URL: `http://backend:8000/webhooks/peppermint`
+5. Name it as you want and set the type to `Ticket Status Change`
+6. Save
 
 > **Note:** The URL uses `backend` (the Docker service name), not `localhost`, because Peppermint calls the backend over the internal Docker network.
 
@@ -98,14 +102,16 @@ The agent runs a 4-step pipeline in the background:
 
 ### Step 4: View the results
 
+- **Discord:** If configured, you should see a notification in your Discord channel with the incident priority, category, severity, assigned team, and a triage summary.
+- **Email:** If configured, the reporter receives a confirmation email with the incident reference and details.
 - **Ticket:** Open http://localhost:3001 (Peppermint), log in with `admin@admin.com` / `1234`, and see the created ticket with the full triage report.
+- **Metrics dashboard:** Open http://localhost:3000/metrics to see real-time incident analytics -- total count, average severity, resolution rate, and breakdowns by status, priority, category, and severity score.
 - **LLM traces:** Open http://localhost:6006 (Arize Phoenix) to see each LLM call with inputs, outputs, token counts, and latency.
-- **API:** `curl http://localhost:8000/api/incidents | python -m json.tool` -- look for `triage_summary`, `priority`, `category`, `severity_score`, `assigned_team`.
 
 ### Step 5: Resolve the ticket → reporter gets notified
 
 1. Open the ticket in Peppermint (http://localhost:3001)
-2. Mark the ticket as **Completed**
+2. Close the issue from the UI.
 3. Peppermint fires the webhook → our backend sends a resolution email to the reporter's email address
 
 Check the backend logs for:
