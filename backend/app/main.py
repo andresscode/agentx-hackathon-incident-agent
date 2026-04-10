@@ -1,30 +1,21 @@
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from phoenix.otel import register
 
 from .database import Base, engine
 from .exceptions import ServiceError
 from .routes import health, incidents, notifications, webhooks
+from .seed import seed
+from .workflows.hooks import notification_hook, peppermint_hook, register_hook
 
-# ─── OpenTelemetry / Phoenix ──────────────────────────────────────────────────
-from .config import settings
+load_dotenv()
 
-if settings.PHOENIX_COLLECTOR_ENDPOINT:
-    from phoenix.otel import register
-    from openinference.instrumentation.langchain import LangChainInstrumentor
-    from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-    import logging
-
-    register(endpoint=f"{settings.PHOENIX_COLLECTOR_ENDPOINT}/v1/traces", verbose=False)
-
-    # Instrument HTTPX and LangChain (don't need app instance)
-    HTTPXClientInstrumentor().instrument()
-    LangChainInstrumentor().instrument()
-
-    logging.getLogger(__name__).info("OpenTelemetry connected to Phoenix at %s", settings.PHOENIX_COLLECTOR_ENDPOINT)
+tracer_provider = register(project_name="default", auto_instrument=True)
 
 
 @asynccontextmanager
@@ -32,13 +23,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 
-    # Instrument FastAPI + SQLAlchemy after app + engine exist
-    if settings.PHOENIX_COLLECTOR_ENDPOINT:
-        from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-        from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-
-        FastAPIInstrumentor.instrument_app(app)
-        SQLAlchemyInstrumentor().instrument(engine=engine.sync_engine)
+    await seed()
 
     yield
     await engine.dispose()
@@ -66,3 +51,7 @@ app.include_router(health.router)
 app.include_router(incidents.router)
 app.include_router(notifications.router)
 app.include_router(webhooks.router)
+
+# Register triage integration hooks
+register_hook(peppermint_hook)
+register_hook(notification_hook)
