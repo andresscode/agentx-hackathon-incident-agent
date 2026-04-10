@@ -3,6 +3,7 @@
 import json
 import logging
 import re
+import time
 
 import httpx
 from fastapi import APIRouter, Request
@@ -12,6 +13,11 @@ from ..config import settings
 logger = logging.getLogger("uvicorn.error")
 
 router = APIRouter()
+
+# Track recently processed tickets to prevent duplicate notifications
+# Format: {ticket_id: timestamp}
+_processed_tickets: dict[str, float] = {}
+DEDUP_WINDOW_SECONDS = 300  # Ignore duplicates for 5 minutes
 
 
 def build_apprise_email_url(raw_url: str) -> str:

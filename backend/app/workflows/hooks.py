@@ -27,6 +27,112 @@ def get_registered_hooks() -> list[TriageHook]:
 # ─── Helpers ─────────────────────────────────────────────────────────────────
 
 
+def _build_html_email(
+    reference: str,
+    name: str,
+    description: str,
+    peppermint_url: str | None = None,
+    triage_summary: str | None = None,
+) -> str:
+    """Build a professional HTML email with inline styles."""
+    summary_section = ""
+    if triage_summary:
+        clean = triage_summary[:400].replace("\n", "<br>")
+        summary_section = f"""
+            <tr>
+                <td style="padding: 0 32px 16px; font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #475569;">
+                    <strong style="color: #1e293b;">Triage Summary:</strong><br>
+                    {clean}
+                </td>
+            </tr>
+        """
+
+    view_link = ""
+    if peppermint_url:
+        view_link = f"""
+            <tr>
+                <td style="padding: 0 32px 24px;">
+                    <a href="{peppermint_url}"
+                       style="display: inline-block; padding: 10px 24px; background-color: #2563eb; color: #ffffff;
+                              text-decoration: none; border-radius: 6px; font-family: Arial, Helvetica, sans-serif;
+                              font-size: 14px; font-weight: bold;">
+                        View Ticket in Peppermint →
+                    </a>
+                </td>
+            </tr>
+        """
+
+    return f"""
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#f0f0f0" style="background-color: #f0f0f0;">
+            <tr>
+                <td align="center" style="padding: 32px 16px;">
+                    <table role="presentation" width="600" cellpadding="0" cellspacing="0" bgcolor="#ffffff"
+                           style="border-radius: 12px; overflow: hidden; max-width: 600px; width: 100%;">
+                        <!-- Header -->
+                        <tr>
+                            <td bgcolor="#1e293b" style="background-color: #1e293b; padding: 32px; border-radius: 12px 12px 0 0;">
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="font-family: Arial, Helvetica, sans-serif; color: #ffffff; font-size: 24px; font-weight: bold;">
+                                            We received your report
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-top: 8px; font-family: Arial, Helvetica, sans-serif; color: #94a3b8; font-size: 14px;">
+                                            Reference: {reference}
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                        <!-- Body -->
+                        <tr>
+                            <td style="padding: 32px;">
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="font-family: Arial, Helvetica, sans-serif; font-size: 16px; color: #334155;">
+                                            Hi {name},
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-top: 16px; font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #475569; line-height: 1.6;">
+                                            Thank you for your incident report. Our team has been notified and is reviewing the issue now.
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-top: 24px; font-family: Arial, Helvetica, sans-serif; font-size: 16px; color: #1e293b; font-weight: bold;">
+                                            Your Report
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td style="padding-top: 8px; font-family: Arial, Helvetica, sans-serif; font-size: 14px; color: #475569; line-height: 1.6;">
+                                            {description.replace("\n", "<br>")}
+                                        </td>
+                                    </tr>
+                                    {summary_section}
+                                    {view_link}
+                                </table>
+                            </td>
+                        </tr>
+                        <!-- Footer -->
+                        <tr>
+                            <td style="padding: 16px 32px 24px; border-top: 1px solid #e2e8f0; background-color: #f8fafc;">
+                                <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+                                    <tr>
+                                        <td style="font-family: Arial, Helvetica, sans-serif; font-size: 12px; color: #94a3b8; line-height: 1.5;">
+                                            You're receiving this because you submitted a report. If you have questions, reply to this email.
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    """.strip()
+
+
 def _build_apprise_email_url(raw_url: str) -> str:
     """Convert smtp:// URL to mailtos:// format for Apprise."""
     import urllib.parse
