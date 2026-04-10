@@ -96,84 +96,173 @@ def _build_discord_body(state: dict[str, Any]) -> str:
 
 # ─── Hooks ────────────────────────────────────────────────────────────────────
 
-async def peppermint_hook(state: dict[str, Any]) -> None:
-    """Create a Peppermint ticket from triage results."""
+
+def _clean_for_peppermint(md: str) -> str:
+    """Convert markdown triage summary to clean structured plain text."""
+    import re
+
+    md = md.replace('\\n', '\n')
+
+    sections = {
+        'summary': '',
+        'probable root cause': '',
+        'affected components': '',
+        'recommended actions': '',
+        'related code': '',
+        'suggested runbook': '',
+    }
+
+    # Extract sections
+    current = None
+    for line in md.splitlines():
+        stripped = line.strip().lower()
+        matched = None
+        for key in sections:
+            if stripped == key or stripped.startswith(key + '\n') or re.match(r'^#{1,6}\s*' + key, stripped):
+                matched = key
+                break
+        if matched:
+            current = matched
+            continue
+        if current and line.strip():
+            # Clean markdown syntax
+            clean = line.replace('**', '').replace('*', '').replace('`', '')
+            clean = re.sub(r'^[\s]*[-*+]\s', '  - ', clean)
+            clean = re.sub(r'^#{1,6}\s*', '', clean)
+            sections[current] += clean + '\n'
+
+    # Build output
+    parts = []
+    parts.append('INCIDENT TRIAGE REPORT')
+    parts.append('=' * 21)
+    parts.append('')
+
+    for section, content in sections.items():
+        if not content.strip():
+            continue
+        parts.append(section.upper())
+        parts.append('-' * len(section))
+        parts.append(content.strip())
+        parts.append('')
+
+    return '\n'.join(parts).strip()
+
+
+async def integrations_hook(state: dict[str, Any]) -> None:
+    """Create Peppermint ticket, then send email + Discord with ticket link."""
     from ..services.peppermint import peppermint  # type: ignore[import-not-found]
 
+    # ── 1. Create Peppermint Ticket ──
     title = (
         f"[{state['priority'].upper()}] [{state['category']}] "
         f"Incident {state['incident_id'][:8]}"
     )
+    header = (
+        f"Priority: {state.get('priority', 'unknown').upper()}\n"
+        f"Category: {state.get('category', 'unknown').upper()}\n"
+        f"Severity: {state.get('severity_score', 'N/A')}/10\n"
+        f"Assigned Team: {state.get('assigned_team', 'TBD')}"
+    )
+    raw_summary = state.get("triage_summary") or state["description"]
+    clean_detail = _clean_for_peppermint(raw_summary)
+    full_detail = header + '\n\n' + clean_detail
+
+    # Workaround: Peppermint double-escapes newlines on their side.
+    # Replace \n with <br> so they survive Peppermint's rendering pipeline.
+    full_detail = full_detail.replace('\n', '<br>')
+
     ticket = await peppermint.create_ticket(
         title=title,
         name=state["reporter_name"],
-        detail=state.get("triage_summary") or state["description"],
+        detail=full_detail,
         priority=state["priority"],
         ticket_type="incident",
         email=state["reporter_email"],
     )
-    logger.info("Peppermint ticket created for incident %s: %s", state["incident_id"], ticket.get("id"))
+    ticket_id = ticket.get("id", state["incident_id"][:8])
+    peppermint_url = f"http://localhost:3001/issue/{ticket_id}"
+    logger.info("Peppermint ticket created for incident %s: %s", state["incident_id"], ticket_id)
 
-
-async def notification_hook(state: dict[str, Any]) -> None:
-    """Send per-channel notifications about the triaged incident.
-
-    Controlled by settings module (env-backed):
-      settings.NOTIFY_EMAIL_ON_TRIAGE
-      settings.NOTIFY_DISCORD_ON_TRIAGE
-      settings.NOTIFY_CC_EMAILS
-    """
-    urls: list[str] = []
-
-    # ── Email ──
+    # ── 2. Send Email ──
     if settings.NOTIFY_EMAIL_ON_TRIAGE:
         email_url = _build_apprise_email_url(settings.EMAIL_SMTP_URL)
         if email_url:
             recipients = [state.get("reporter_email", "")]
             recipients.extend(settings.NOTIFY_CC_EMAILS)
             email_url = f"{email_url}&to={','.join(recipients)}"
-            urls.append(email_url)
+
+            sep = "=" * 40
+            email_body = (
+                f"INCIDENT NOTIFICATION\n{sep}\n\n"
+                f"Ticket ID: {ticket_id}\n"
+                f"Title: {title}\n"
+                f"Priority: {state.get('priority', 'unknown').upper()}\n"
+                f"Category: {state.get('category', 'unknown')}\n"
+                f"Severity: {state.get('severity_score', 'N/A')}/10\n"
+                f"Assigned Team: {state.get('assigned_team', 'TBD')}\n"
+                f"Reporter: {state.get('reporter_name', 'Unknown')} "
+                f"({state.get('reporter_email', '')})\n\n"
+                f"Description:\n{state.get('description', '')}\n\n"
+                f"Triage Summary:\n{state.get('triage_summary', 'Pending triage...')}\n\n"
+                f"{sep}\n"
+                f"View ticket in Peppermint: {peppermint_url}"
+            )
+
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.post(
+                        f"{settings.APPRISE_URL}/notify",
+                        json={
+                            "urls": email_url,
+                            "title": f"[{state.get('priority', 'unknown').upper()}] Incident {state['incident_id'][:8]}",
+                            "body": email_body,
+                            "type": "info",
+                        },
+                    )
+                    if resp.status_code != 200:
+                        logger.error("notification_hook: Email error: %s", resp.text)
+                    else:
+                        logger.info("notification_hook: Email sent for incident %s", state["incident_id"])
+            except httpx.RequestError as e:
+                logger.error("notification_hook: Failed to send email: %s", e)
         else:
             logger.warning("notification_hook: EMAIL_SMTP_URL not configured, skipping email")
 
-    # ── Discord ──
+    # ── 3. Send Discord ──
     if settings.NOTIFY_DISCORD_ON_TRIAGE:
         if settings.DISCORD_WEBHOOK_URL:
-            urls.append(settings.DISCORD_WEBHOOK_URL)
+            discord_body = (
+                f"**[{state.get('priority', 'unknown').upper()}] "
+                f"[{state.get('category', 'unknown')}]** "
+                f"Incident `{state['incident_id'][:8]}`\n\n"
+                f"**Reporter:** {state.get('reporter_name', 'Unknown')}\n"
+                f"**Severity:** {state.get('severity_score', 'N/A')}/10\n"
+                f"**Team:** {state.get('assigned_team', 'TBD')}\n\n"
+                f"**Description:**\n{state.get('description', '')}\n\n"
+                f"**Triage:**\n{state.get('triage_summary', 'Pending...')[:500]}\n\n"
+                f"🔗 [View Ticket in Peppermint]({peppermint_url})"
+            )
+
+            try:
+                async with httpx.AsyncClient(timeout=30.0) as client:
+                    resp = await client.post(
+                        f"{settings.APPRISE_URL}/notify",
+                        json={
+                            "urls": settings.DISCORD_WEBHOOK_URL,
+                            "title": f"[{state.get('priority', 'unknown').upper()}] Incident {state['incident_id'][:8]}",
+                            "body": discord_body,
+                            "type": "info",
+                        },
+                    )
+                    if resp.status_code != 200:
+                        logger.error("notification_hook: Discord error: %s", resp.text)
+                    else:
+                        logger.info("notification_hook: Discord sent for incident %s", state["incident_id"])
+            except httpx.RequestError as e:
+                logger.error("notification_hook: Failed to send Discord: %s", e)
         else:
             logger.warning("notification_hook: DISCORD_WEBHOOK_URL not configured, skipping discord")
 
-    if not urls:
-        logger.info("notification_hook: no channels configured, skipping")
-        return
-
-    subject = (
-        f"[{state.get('priority', 'unknown').upper()}] "
-        f"[{state.get('category', 'unknown')}] Incident {state['incident_id'][:8]}"
-    )
-
-    body = _build_rich_body(state)
-
-    try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            resp = await client.post(
-                f"{settings.APPRISE_URL}/notify",
-                json={
-                    "urls": ",".join(urls),
-                    "title": subject,
-                    "body": body,
-                    "type": "info",
-                },
-            )
-            if resp.status_code != 200:
-                logger.error("notification_hook: Apprise error: %s", resp.text)
-            else:
-                logger.info("notification_hook: sent for incident %s", state["incident_id"])
-
-    except httpx.RequestError as e:
-        logger.error("notification_hook: failed to connect to Apprise: %s", e)
-
 
 # ─── Auto-register hooks on module import ─────────────────────────────────────
-register_hook(peppermint_hook)
-register_hook(notification_hook)
+register_hook(integrations_hook)
