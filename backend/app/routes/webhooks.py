@@ -3,7 +3,6 @@
 import json
 import logging
 import re
-import time
 
 import httpx
 from fastapi import APIRouter, Request
@@ -143,14 +142,54 @@ async def peppermint_ticket_webhook(request: Request):
     email_url = f"{email_url}&to={data['email']}"
 
     # Build completion email content
-    subject = f"✅ Ticket Resolved: {data['title']}"
+
+    ticket_ref = data["id"][:8] if len(data["id"]) > 8 else data["id"]
+    subject = f"Your issue has been resolved (Ref: {ticket_ref})"
     body = (
-        f"Your ticket has been marked as completed.\n\n"
-        f"Ticket ID: {data['id']}\n"
-        f"Title: {data['title']}\n\n"
-        f"Details: {data['detail']}\n\n"
-        f"If you have any further questions or the issue persists, "
-        f"please reply to this ticket."
+        "<html>"
+        "<body style='margin:0;padding:0;background:#f4f4f5;"
+        "font-family:Arial,Helvetica,sans-serif;'>"
+        "<table width='100%' cellpadding='0' cellspacing='0'"
+        " style='background:#f4f4f5;padding:32px 0;'>"
+        "<tr><td align='center'>"
+        "<table width='600' cellpadding='0' cellspacing='0'"
+        " style='background:#fff;border-radius:8px;"
+        "overflow:hidden;"
+        "box-shadow:0 1px 3px rgba(0,0,0,0.1);'>"
+        # Header
+        "<tr><td style='background:#16a34a;"
+        "padding:24px 32px;'>"
+        "<h1 style='margin:0;color:#fff;font-size:20px;"
+        "font-weight:600;'>"
+        "\u2705 Your issue has been resolved</h1>"
+        "<p style='margin:6px 0 0;color:#dcfce7;"
+        f"font-size:13px;'>Reference: {ticket_ref}</p>"
+        "</td></tr>"
+        # Body
+        "<tr><td style='padding:28px 32px 12px;'>"
+        "<p style='margin:0;color:#334155;"
+        "font-size:15px;line-height:1.6;'>Hi,</p>"
+        "<p style='margin:12px 0 0;color:#334155;"
+        "font-size:15px;line-height:1.6;'>"
+        "Good news! The issue you reported has been "
+        "reviewed and resolved by our team.</p>"
+        "<p style='margin:12px 0 0;color:#334155;"
+        "font-size:15px;line-height:1.6;'>"
+        "If you're still experiencing any problems or "
+        "have additional questions, simply reply to this "
+        "email and we'll be happy to help.</p>"
+        "</td></tr>"
+        # Footer
+        "<tr><td style='background:#f8fafc;"
+        "border-top:1px solid #e2e8f0;padding:20px 32px;'>"
+        "<p style='margin:0;color:#94a3b8;font-size:12px;"
+        "line-height:1.5;text-align:center;'>"
+        "You're receiving this because you submitted a "
+        "report. Thank you for your patience.</p>"
+        "</td></tr>"
+        "</table>"
+        "</td></tr></table>"
+        "</body></html>"
     )
 
     # Send via Apprise
@@ -163,6 +202,7 @@ async def peppermint_ticket_webhook(request: Request):
                     "title": subject,
                     "body": body,
                     "type": "info",
+                    "format": "html",
                 },
             )
             if resp.status_code != 200:
